@@ -5,6 +5,11 @@
          pedirselos al usuario. Si falta la linea, la peticion falla en
          silencio y la funcion nunca arranca. -->
 
+    <!-- Descargar los mosaicos del mapa desde OpenStreetMap.
+         Flutter lo agrega solo en compilaciones de depuracion, pero NO en
+         release: sin esta linea el mapa saldria en blanco en el APK final. -->
+    <uses-permission android:name="android.permission.INTERNET"/>
+
     <!-- Foto del perro al inicio y al final del paseo (image_picker) -->
     <uses-permission android:name="android.permission.CAMERA"/>
     <!-- Android 13 en adelante usa este permiso para leer la galeria -->

@@ -41,6 +41,8 @@ dependencies:
   geolocator: ^14.1.2
   url_launcher: ^6.3.3
   intl: ^0.20.3
+  flutter_map: ^8.3.2
+  latlong2: ^0.10.1
 
 dev_dependencies:
   flutter_test:
@@ -64,10 +66,9 @@ flutter:
   # the material Icons class.
   uses-material-design: true
 
-  # To add assets to your application, add an assets section, like this:
-  # assets:
-  #   - images/a_dot_burr.jpeg
-  #   - images/a_dot_ham.jpeg
+  # Logo e identidad de DogTrips, heredados de la version web de 6.o semestre.
+  assets:
+    - assets/imagenes/
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

@@ -1,24 +1,22 @@
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:material_ui/material_ui.dart';
 
-import 'modelos/paseo.dart';
-import 'pantallas/detalle_paseo.dart';
-import 'pantallas/lista_paseos.dart';
-import 'pantallas/nuevo_paseo.dart';
+import 'pantallas/inicio.dart';
+import 'pantallas/mapa_paseadores.dart';
 
 Future<void> main() async {
-  // Hay que esperar a que Flutter inicialice su enlace con la plataforma antes
-  // de hacer cualquier trabajo asincrono previo a runApp.
+  // Hay que esperar a que Flutter enlace con la plataforma antes de hacer
+  // cualquier trabajo asincrono previo a runApp.
   WidgetsFlutterBinding.ensureInitialized();
 
-  // DateFormat con locale 'es' lanza una excepcion si los datos del idioma no
-  // se cargaron antes. Sin esta linea la app truena al abrir la lista.
+  // DateFormat con locale 'es' lanza excepcion si los datos del idioma no se
+  // cargaron antes. Sin esta linea la app truena al mostrar la primera fecha.
   await initializeDateFormatting('es');
 
   runApp(const AppDogTrips());
 }
 
-/// Paleta de DogTrips, heredada de la version web del proyecto.
+/// Paleta de DogTrips, heredada de la version web de 6.o semestre.
 /// Se conserva para que la app y la web se lean como el mismo producto.
 class ColoresDogTrips {
   static const navy = Color(0xFF1B2F49);
@@ -28,13 +26,15 @@ class ColoresDogTrips {
 
 /// Nombres de rutas en constantes, no como texto suelto.
 ///
-/// Si una ruta se escribe mal dentro de un pushNamed, el fallo aparece en
-/// tiempo de ejecucion y solo cuando alguien toca ese boton. Con constantes lo
-/// atrapa el compilador.
+/// Un nombre mal escrito dentro de un pushNamed falla en tiempo de ejecucion, y
+/// solo cuando alguien toca ese boton. Como constante, lo atrapa el compilador.
 class Rutas {
-  static const lista = '/';
-  static const detalle = '/detalle';
-  static const nuevo = '/nuevo';
+  static const inicio = '/';
+  static const mapa = '/mapa';
+  static const perfilPaseador = '/paseador';
+  static const nuevaReserva = '/reservar';
+  static const misReservas = '/reservas';
+  static const misMascotas = '/mascotas';
 }
 
 class AppDogTrips extends StatelessWidget {
@@ -46,25 +46,17 @@ class AppDogTrips extends StatelessWidget {
       title: 'DogTrips',
       debugShowCheckedModeBanner: false,
       theme: _tema(),
-      initialRoute: Rutas.lista,
-      // Rutas con nombre: cada pantalla se declara una vez aqui. La alternativa
-      // seria construir un MaterialPageRoute a mano en cada boton que navega,
-      // repitiendo el mismo codigo por toda la app.
+      initialRoute: Rutas.inicio,
       routes: {
-        Rutas.lista: (_) => const PantallaListaPaseos(),
-        Rutas.nuevo: (_) => const PantallaNuevoPaseo(),
+        Rutas.inicio: (_) => const PantallaInicio(),
+        Rutas.mapa: (_) => const PantallaMapaPaseadores(),
       },
-      // El detalle necesita el paseo que se va a mostrar, asi que se construye
-      // aparte para poder leer los argumentos de la navegacion.
-      onGenerateRoute: (ajustes) {
-        if (ajustes.name == Rutas.detalle) {
-          final paseo = ajustes.arguments as Paseo;
-          return MaterialPageRoute(
-            builder: (_) => PantallaDetallePaseo(paseo: paseo),
-          );
-        }
-        return null;
-      },
+      // Red de seguridad: sin esto, navegar a una ruta no registrada lanza una
+      // excepcion y tumba la app. Mientras el proyecto crece, es preferible una
+      // pantalla que diga "en construccion" a un cierre inesperado.
+      onUnknownRoute: (ajustes) => MaterialPageRoute(
+        builder: (_) => _EnConstruccion(ruta: ajustes.name ?? '?'),
+      ),
     );
   }
 
@@ -104,12 +96,55 @@ class AppDogTrips extends StatelessWidget {
   }
 }
 
-/// Menu lateral compartido por las pantallas.
+/// Marcador temporal para las rutas que todavia no tienen pantalla.
+class _EnConstruccion extends StatelessWidget {
+  const _EnConstruccion({required this.ruta});
+
+  final String ruta;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('En construccion')),
+      drawer: const MenuLateral(),
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(32),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.construction, size: 56, color: ColoresDogTrips.coral),
+              const SizedBox(height: 14),
+              Text(
+                'La pantalla "$ruta" todavia no esta lista.',
+                textAlign: TextAlign.center,
+                style: const TextStyle(fontSize: 16),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Menu lateral compartido por todas las pantallas.
 ///
 /// Vive aqui y no dentro de una pantalla porque lo usan varias: si estuviera en
-/// la lista, el detalle tendria que importar la lista solo para reusar el menu.
+/// el inicio, el mapa tendria que importar el inicio solo para reusar el menu.
 class MenuLateral extends StatelessWidget {
   const MenuLateral({super.key});
+
+  void _ir(BuildContext context, String ruta) {
+    Navigator.pop(context); // cierra el menu antes de navegar
+    if (ruta == Rutas.inicio) {
+      // Volver al inicio limpia la pila: si no, el boton de atras acumularia
+      // una cadena infinita de pantallas.
+      Navigator.pushNamedAndRemoveUntil(context, ruta, (r) => false);
+    } else {
+      Navigator.pushNamed(context, ruta);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -117,23 +152,29 @@ class MenuLateral extends StatelessWidget {
       child: ListView(
         padding: EdgeInsets.zero,
         children: [
-          const DrawerHeader(
-            decoration: BoxDecoration(color: ColoresDogTrips.navy),
+          DrawerHeader(
+            decoration: const BoxDecoration(color: ColoresDogTrips.navy),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
-                Text(
-                  'DOGTRIPS',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 26,
-                    fontWeight: FontWeight.bold,
-                    letterSpacing: 3,
+                Image.asset(
+                  'assets/imagenes/logo-blanco.png',
+                  height: 64,
+                  // Si el asset faltara, Image.asset lanza y tumba el menu
+                  // entero. Con errorBuilder cae al texto y la app sigue.
+                  errorBuilder: (_, _, _) => const Text(
+                    'DOGTRIPS',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 3,
+                    ),
                   ),
                 ),
-                SizedBox(height: 6),
-                Text(
+                const SizedBox(height: 8),
+                const Text(
                   'Safe Journeys, Happy Tails',
                   style: TextStyle(color: Colors.white70, fontSize: 12),
                 ),
@@ -141,24 +182,24 @@ class MenuLateral extends StatelessWidget {
             ),
           ),
           ListTile(
-            leading: const Icon(Icons.pets),
-            title: const Text('Mis paseos'),
-            onTap: () {
-              Navigator.pop(context); // cierra el menu antes de navegar
-              Navigator.pushNamedAndRemoveUntil(
-                context,
-                Rutas.lista,
-                (ruta) => false,
-              );
-            },
+            leading: const Icon(Icons.home_outlined),
+            title: const Text('Inicio'),
+            onTap: () => _ir(context, Rutas.inicio),
           ),
           ListTile(
-            leading: const Icon(Icons.add_a_photo_outlined),
-            title: const Text('Registrar paseo'),
-            onTap: () {
-              Navigator.pop(context);
-              Navigator.pushNamed(context, Rutas.nuevo);
-            },
+            leading: const Icon(Icons.map_outlined),
+            title: const Text('Encuentra tu paseador'),
+            onTap: () => _ir(context, Rutas.mapa),
+          ),
+          ListTile(
+            leading: const Icon(Icons.pets_outlined),
+            title: const Text('Mis mascotas'),
+            onTap: () => _ir(context, Rutas.misMascotas),
+          ),
+          ListTile(
+            leading: const Icon(Icons.event_note_outlined),
+            title: const Text('Mis reservas'),
+            onTap: () => _ir(context, Rutas.misReservas),
           ),
           const Divider(),
           const ListTile(

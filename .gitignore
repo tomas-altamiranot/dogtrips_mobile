@@ -46,3 +46,9 @@ app.*.map.json
 
 # Widget Preview related
 .widget_preview/
+
+# Contexto del agente (no es codigo del proyecto)
+CLAUDE.md
+
+# Contexto propio
+Contexto/
