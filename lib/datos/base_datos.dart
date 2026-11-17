@@ -1,8 +1,10 @@
+import 'dart:developer' as developer;
 import 'dart:math' as math;
 
 import 'package:path/path.dart' as p;
 import 'package:sqflite/sqflite.dart';
 
+import '../modelos/dueno.dart';
 import '../modelos/mascota.dart';
 import '../modelos/paseador.dart';
 import '../modelos/reserva.dart';
@@ -15,7 +17,12 @@ import 'semilla_paseadores.dart';
 class ErrorDeDatos implements Exception {
   final String mensaje;
   final Object? causa;
-  ErrorDeDatos(this.mensaje, [this.causa]);
+
+  ErrorDeDatos(this.mensaje, [this.causa]) {
+    // Al usuario se le muestra solo [mensaje]; la causa tecnica se escribe en
+    // la consola de desarrollo para poder diagnosticar el problema.
+    developer.log(mensaje, name: 'DogTrips', error: causa);
+  }
 
   @override
   String toString() => mensaje;
@@ -34,8 +41,11 @@ class BaseDatos {
   static final BaseDatos instancia = BaseDatos._();
 
   static const _archivo = 'dogtrips.db';
-  static const _version = 1;
+  /// Version 1: mascotas, paseadores y reservas.
+  /// Version 2: se agrega la tabla del dueno.
+  static const _version = 2;
 
+  static const tablaDueno = 'dueno';
   static const tablaMascotas = 'mascotas';
   static const tablaPaseadores = 'paseadores';
   static const tablaReservas = 'reservas';
@@ -54,6 +64,9 @@ class BaseDatos {
         ruta,
         version: _version,
         onCreate: _crear,
+        // Si el telefono ya tenia una version anterior de la base, no se borra:
+        // solo se le agrega lo que le falta, y las mascotas y reservas siguen ahi.
+        onUpgrade: _actualizar,
         // SQLite no aplica las llaves foraneas si no se le pide expresamente,
         // y lo hace por conexion, no por base. Sin esta linea se podria guardar
         // una reserva apuntando a una mascota que ya no existe.
@@ -115,7 +128,29 @@ class BaseDatos {
       'CREATE INDEX idx_reservas_fecha ON $tablaReservas (fecha_hora DESC)',
     );
 
+    await _crearTablaDueno(db);
     await _sembrarPaseadores(db);
+  }
+
+  /// Se ejecuta cuando la base del telefono es mas vieja que [_version].
+  Future<void> _actualizar(Database db, int anterior, int nueva) async {
+    if (anterior < 2) await _crearTablaDueno(db);
+  }
+
+  /// CHECK (id = 1) hace que la tabla solo pueda tener una fila: un telefono,
+  /// un dueno. Lo garantiza la base misma, no solo el codigo.
+  ///
+  /// IF NOT EXISTS hace que la migracion se pueda repetir sin romperse: si una
+  /// actualizacion se interrumpe a medias, la tabla puede existir aunque la
+  /// version no se haya guardado, y el siguiente arranque la intentaria crear
+  /// otra vez.
+  Future<void> _crearTablaDueno(Database db) async {
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS $tablaDueno (
+        id     INTEGER PRIMARY KEY CHECK (id = 1),
+        nombre TEXT    NOT NULL
+      )
+    ''');
   }
 
   /// Carga los paseadores de ejemplo.
@@ -129,6 +164,35 @@ class BaseDatos {
       lote.insert(tablaPaseadores, pas.aMapa()..remove('id'));
     }
     await lote.commit(noResult: true);
+  }
+
+  // ───────────────────────────────────────────────────────────────────────
+  // Dueno
+  // ───────────────────────────────────────────────────────────────────────
+
+  /// Devuelve null si todavia no se registro: es la primera vez que se abre.
+  Future<Dueno?> leerDueno() async {
+    try {
+      final db = await _base;
+      final filas = await db.query(tablaDueno, limit: 1);
+      return filas.isEmpty ? null : Dueno.desdeMapa(filas.first);
+    } catch (e) {
+      throw ErrorDeDatos('No se pudo leer tu perfil.', e);
+    }
+  }
+
+  /// Sirve para crear y para editar: si ya existe la fila 1, la reemplaza.
+  Future<void> guardarDueno(Dueno dueno) async {
+    try {
+      final db = await _base;
+      await db.insert(
+        tablaDueno,
+        dueno.aMapa(),
+        conflictAlgorithm: ConflictAlgorithm.replace,
+      );
+    } catch (e) {
+      throw ErrorDeDatos('No se pudo guardar tu perfil.', e);
+    }
   }
 
   // ───────────────────────────────────────────────────────────────────────

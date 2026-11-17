@@ -83,7 +83,8 @@ class AppDogTrips extends StatelessWidget {
         style: FilledButton.styleFrom(
           backgroundColor: ColoresDogTrips.navy,
           foregroundColor: Colors.white,
-          padding: const EdgeInsets.symmetric(vertical: 16),
+          // Sin relleno horizontal el texto toca los bordes del boton.
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
         ),
       ),
@@ -128,6 +129,41 @@ class _EnConstruccion extends StatelessWidget {
   }
 }
 
+/// Logo para el AppBar: la silueta del perro y el nombre.
+///
+/// No se usa logo.png porque esa imagen ya trae el slogan, y a la altura de un
+/// AppBar se vuelve ilegible.
+class LogoDogTrips extends StatelessWidget {
+  const LogoDogTrips({super.key, this.altura = 28});
+
+  final double altura;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Image.asset(
+          'assets/imagenes/FAVICON.png',
+          height: altura,
+          errorBuilder: (_, _, _) =>
+              Icon(Icons.pets, color: Colors.white, size: altura),
+        ),
+        const SizedBox(width: 10),
+        Text(
+          'DOGTRIPS',
+          style: TextStyle(
+            color: Colors.white,
+            fontSize: altura * 0.68,
+            fontWeight: FontWeight.w600,
+            letterSpacing: 4,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
 /// Menu lateral compartido por todas las pantallas.
 ///
 /// Vive aqui y no dentro de una pantalla porque lo usan varias: si estuviera en
@@ -158,22 +194,9 @@ class MenuLateral extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
-                Image.asset(
-                  'assets/imagenes/logo-blanco.png',
-                  height: 64,
-                  // Si el asset faltara, Image.asset lanza y tumba el menu
-                  // entero. Con errorBuilder cae al texto y la app sigue.
-                  errorBuilder: (_, _, _) => const Text(
-                    'DOGTRIPS',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 3,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 8),
+                // Silueta + nombre; el slogan va una sola vez, abajo.
+                const LogoDogTrips(altura: 36),
+                const SizedBox(height: 10),
                 const Text(
                   'Safe Journeys, Happy Tails',
                   style: TextStyle(color: Colors.white70, fontSize: 12),
