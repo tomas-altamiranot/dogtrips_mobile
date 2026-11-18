@@ -232,6 +232,20 @@ void main() {
       expect(con(EstadoReserva.cancelada, manana).sePuedeCancelar, isFalse);
     });
 
+    test('un paseo confirmado que ya termino se muestra completado', () {
+      final pasado = Reserva(
+        paseadorId: 1,
+        fechaHora: DateTime.now().subtract(const Duration(hours: 3)),
+        duracionMin: 60,
+        estado: EstadoReserva.confirmada,
+        costoEstimado: 100,
+      );
+      expect(pasado.estadoActual, EstadoReserva.completada);
+      expect(pasado.esProxima, isFalse);
+      // En la base sigue guardado como confirmado: solo cambia lo que se ve.
+      expect(pasado.estado, EstadoReserva.confirmada);
+    });
+
     test('ida y vuelta a SQLite conserva la fecha y el estado', () {
       final original = Reserva(
         id: 9,

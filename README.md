@@ -17,10 +17,12 @@ Proyecto individual · Flutter · SQLite · OpenStreetMap
 
 | Componente | Estado |
 |---|---|
-| Modelo de datos y capa SQLite | 🚧 En curso |
-| Mapa de paseadores cercanos | 🚧 Pendiente |
-| Perfil del paseador y reserva | 🚧 Pendiente |
-| Registro de mascotas con cámara | 🚧 Pendiente |
+| Perfil del dueño y bienvenida | ✅ |
+| Modelo de datos y capa SQLite (versión 3, con migraciones) | ✅ |
+| Mapa de paseadores cercanos, con lista deslizable | ✅ |
+| Perfil del paseador y reserva con varios perros | ✅ |
+| Mis reservas: lista, detalle y cancelación | ✅ |
+| Registro de mascotas con cámara y galería | ✅ |
 | Dictado por voz y login biométrico | 🚧 Trabajo futuro |
 
 ---
@@ -86,19 +88,19 @@ proyecto hermano siembra su base de datos de grafos.
 ## 3. Modelo de datos
 
 ```
-Mascota                        Paseador  (sembrado)        Reserva
-  id                             id                          id
-  nombre                         nombre                      mascotaId   ──┐
-  raza                           zona                        paseadorId  ──┤
-  tamano                         latitud, longitud           fechaHora     │
-  edadMeses                      calificacion                duracionMin   │
-  fotoPath                       tarifaHora                  instrucciones │
-  notas                          experienciaMeses            estado        │
-                                 verificado                  costoEstimado │
-                                 habilidades                               │
-       ▲                               ▲                                   │
-       └───────────────────────────────┴───────────────────────────────────┘
+Dueno            Mascota          reserva_mascotas       Reserva           Paseador (sembrado)
+  id (=1)          id      ◄──────  mascota_id             id      ◄──┐      id
+  nombre           nombre           reserva_id  ─────────► paseadorId ─┼───►  nombre, zona
+                   raza                                    fechaHora   │      latitud, longitud
+                   tamano                                  duracionMin │      calificacion
+                   edadMeses                               instrucciones      tarifaHora
+                   fotoPath                                estado             verificado
+                   notas                                   costoEstimado      habilidades (JSON)
 ```
+
+Una reserva puede llevar varios perros y un perro puede ir a muchos paseos. Esa relación de
+muchos a muchos vive en la tabla intermedia `reserva_mascotas`: una fila por cada perro que
+va a cada paseo.
 
 ### La tarifa
 
@@ -107,16 +109,18 @@ El cálculo viene del documento de requerimientos original:
 > *"Se les calculará una tarifa basada en la duración del paseo, la distancia recorrida, el
 > número de mascotas paseadas, peso y complexión de la mascota."*
 
-Implementado en esta versión:
+Implementado en esta versión (duración, complexión y número de mascotas):
 
 ```
-costo = tarifaHora × (duracionMin / 60) × factorTamano
+costo de cada perro = tarifaHora × (duracionMin / 60) × factorTamano × 0.9^i
 
 factorTamano:  pequeño 1.00 · mediano 1.15 · grande 1.30
+i:             0 para el perro más grande, 1 para el siguiente, etc.
 ```
 
-Distancia recorrida y número de mascotas quedan documentados como trabajo futuro: ambos
-requieren datos que solo existen una vez el paseo ocurrió.
+Cada perro adicional paga el 90 % del anterior (descuento compuesto). El más grande paga
+completo, para que el precio no dependa del orden en que se eligieron. La distancia
+recorrida queda como trabajo futuro: solo se conoce cuando el paseo ya ocurrió.
 
 ---
 

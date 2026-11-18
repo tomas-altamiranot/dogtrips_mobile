@@ -135,6 +135,23 @@ class Reserva {
   /// Termino del paseo.
   DateTime get fin => fechaHora.add(Duration(minutes: duracionMin));
 
+  /// El estado que se le muestra al dueno.
+  ///
+  /// Nadie marca un paseo como "completado": esa seria la app del paseador,
+  /// que no existe en esta entrega. Por eso se deduce por la hora: un paseo
+  /// confirmado que ya termino se muestra como completado. No se guarda en la
+  /// base; se calcula cada vez.
+  EstadoReserva get estadoActual {
+    if (estado == EstadoReserva.confirmada && fin.isBefore(DateTime.now())) {
+      return EstadoReserva.completada;
+    }
+    return estado;
+  }
+
+  /// Todavia no ocurre y no se cancelo: va en "Proximos paseos".
+  bool get esProxima =>
+      estado != EstadoReserva.cancelada && fin.isAfter(DateTime.now());
+
   /// Solo se puede cancelar lo que sigue activo y aun no empieza.
   bool get sePuedeCancelar =>
       (estado == EstadoReserva.pendiente ||

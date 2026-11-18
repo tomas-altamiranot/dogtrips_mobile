@@ -2,10 +2,13 @@ import 'package:intl/date_symbol_data_local.dart';
 import 'package:material_ui/material_ui.dart';
 
 import 'modelos/mascota.dart';
+import 'modelos/reserva.dart';
+import 'pantallas/detalle_reserva.dart';
 import 'pantallas/form_mascota.dart';
 import 'pantallas/inicio.dart';
 import 'pantallas/mapa_paseadores.dart';
 import 'pantallas/mis_mascotas.dart';
+import 'pantallas/mis_reservas.dart';
 import 'pantallas/nueva_reserva.dart';
 import 'pantallas/perfil_paseador.dart';
 
@@ -41,6 +44,7 @@ class Rutas {
   static const misReservas = '/reservas';
   static const misMascotas = '/mascotas';
   static const formMascota = '/mascotas/form';
+  static const detalleReserva = '/reservas/detalle';
 }
 
 class AppDogTrips extends StatelessWidget {
@@ -67,6 +71,11 @@ class AppDogTrips extends StatelessWidget {
         ),
         Rutas.nuevaReserva: (contexto) => PantallaNuevaReserva(
           args: ModalRoute.of(contexto)!.settings.arguments as ArgsPaseador,
+        ),
+        Rutas.misReservas: (_) => const PantallaMisReservas(),
+        Rutas.detalleReserva: (contexto) => PantallaDetalleReserva(
+          inicial:
+              ModalRoute.of(contexto)!.settings.arguments as ReservaCompleta,
         ),
       },
       // Red de seguridad: sin esto, navegar a una ruta no registrada lanza una
