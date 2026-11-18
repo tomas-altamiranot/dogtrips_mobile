@@ -1,5 +1,6 @@
 import 'package:intl/intl.dart';
 import 'package:material_ui/material_ui.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../datos/base_datos.dart';
 import '../main.dart';
@@ -23,6 +24,27 @@ class _PantallaDetalleReservaState extends State<PantallaDetalleReserva> {
   /// pantalla cambia al instante, sin volver a leer la base.
   late Reserva _reserva = widget.inicial.reserva;
   bool _cancelando = false;
+
+  /// Abre Google Maps en las coordenadas del paseador guardadas en SQLite.
+  ///
+  /// Es un enlace https normal: si el telefono tiene la app de Maps, Android
+  /// la abre; si no, se abre en el navegador.
+  Future<void> _abrirEnMapas() async {
+    final p = widget.inicial.paseador;
+    final url = Uri.parse(
+      'https://www.google.com/maps/search/?api=1'
+      '&query=${p.latitud},${p.longitud}',
+    );
+    try {
+      final abrio = await launchUrl(url, mode: LaunchMode.externalApplication);
+      if (!abrio) throw Exception('launchUrl devolvio false');
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No se pudo abrir Google Maps.')),
+      );
+    }
+  }
 
   Future<void> _cancelar() async {
     final confirmado = await showDialog<bool>(
@@ -104,23 +126,35 @@ class _PantallaDetalleReservaState extends State<PantallaDetalleReserva> {
 
           _Seccion(
             titulo: 'Paseador',
-            child: ListTile(
-              contentPadding: EdgeInsets.zero,
-              leading: CircleAvatar(
-                backgroundColor: ColoresDogTrips.navy,
-                child: Text(
-                  r.paseador.nombre.characters.first,
-                  style: const TextStyle(color: Colors.white),
+            child: Column(
+              children: [
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: CircleAvatar(
+                    backgroundColor: ColoresDogTrips.navy,
+                    child: Text(
+                      r.paseador.nombre.characters.first,
+                      style: const TextStyle(color: Colors.white),
+                    ),
+                  ),
+                  title: Text(r.paseador.nombre),
+                  subtitle: Text(r.paseador.zona),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () => Navigator.pushNamed(
+                    context,
+                    Rutas.perfilPaseador,
+                    arguments: ArgsPaseador(paseador: r.paseador),
+                  ),
                 ),
-              ),
-              title: Text(r.paseador.nombre),
-              subtitle: Text(r.paseador.zona),
-              trailing: const Icon(Icons.chevron_right),
-              onTap: () => Navigator.pushNamed(
-                context,
-                Rutas.perfilPaseador,
-                arguments: ArgsPaseador(paseador: r.paseador),
-              ),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: _abrirEnMapas,
+                    icon: const Icon(Icons.map_outlined),
+                    label: const Text('Ver en Google Maps'),
+                  ),
+                ),
+              ],
             ),
           ),
 
