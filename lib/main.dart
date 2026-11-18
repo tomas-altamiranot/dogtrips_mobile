@@ -268,7 +268,7 @@ class MenuLateral extends StatelessWidget {
           const ListTile(
             leading: Icon(Icons.info_outline),
             title: Text('Acerca de'),
-            subtitle: Text('Proyecto academico\nUniversidad Anahuac Mayab'),
+            subtitle: Text('Proyecto académico\nUniversidad Anáhuac Mayab'),
           ),
         ],
       ),
