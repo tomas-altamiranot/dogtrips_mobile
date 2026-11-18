@@ -1,6 +1,7 @@
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:material_ui/material_ui.dart';
 
+import 'modelos/dueno.dart';
 import 'modelos/mascota.dart';
 import 'modelos/reserva.dart';
 import 'pantallas/detalle_reserva.dart';
@@ -11,6 +12,7 @@ import 'pantallas/mis_mascotas.dart';
 import 'pantallas/mis_reservas.dart';
 import 'pantallas/nueva_reserva.dart';
 import 'pantallas/perfil_paseador.dart';
+import 'pantallas/seguridad.dart';
 
 Future<void> main() async {
   // Hay que esperar a que Flutter enlace con la plataforma antes de hacer
@@ -45,6 +47,7 @@ class Rutas {
   static const misMascotas = '/mascotas';
   static const formMascota = '/mascotas/form';
   static const detalleReserva = '/reservas/detalle';
+  static const seguridad = '/seguridad';
 }
 
 class AppDogTrips extends StatelessWidget {
@@ -76,6 +79,9 @@ class AppDogTrips extends StatelessWidget {
         Rutas.detalleReserva: (contexto) => PantallaDetalleReserva(
           inicial:
               ModalRoute.of(contexto)!.settings.arguments as ReservaCompleta,
+        ),
+        Rutas.seguridad: (contexto) => PantallaSeguridad(
+          dueno: ModalRoute.of(contexto)!.settings.arguments as Dueno,
         ),
       },
       // Red de seguridad: sin esto, navegar a una ruta no registrada lanza una

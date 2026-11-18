@@ -44,6 +44,9 @@ dependencies:
   flutter_map: ^8.3.2
   latlong2: ^0.10.1
   path_provider: ^2.1.6
+  speech_to_text: ^7.5.0
+  local_auth: ^3.0.2
+  crypto: ^3.0.8
 
 dev_dependencies:
   flutter_test:

@@ -1,11 +1,13 @@
 import 'package:material_ui/material_ui.dart';
 
 import '../datos/base_datos.dart';
+import '../datos/seguridad.dart';
 import '../main.dart';
 import '../modelos/dueno.dart';
 import '../modelos/mascota.dart';
 import 'avatar_mascota.dart';
 import 'bienvenida.dart';
+import 'bloqueo.dart';
 
 /// Lo que el Inicio necesita para dibujarse.
 class _DatosInicio {
@@ -78,7 +80,9 @@ class _PantallaInicioState extends State<PantallaInicio> {
     if (nuevo == null || nuevo.isEmpty) return;
 
     try {
-      await BaseDatos.instancia.guardarDueno(Dueno(nombre: nuevo));
+      // copiarCon y no Dueno(nombre: nuevo): guardarDueno reemplaza la fila
+      // completa, y un Dueno nuevo traeria el PIN vacio y lo borraria.
+      await BaseDatos.instancia.guardarDueno(dueno.copiarCon(nombre: nuevo));
       _recargar();
     } on ErrorDeDatos catch (e) {
       if (!mounted) return;
@@ -121,10 +125,21 @@ class _PantallaInicioState extends State<PantallaInicio> {
 
         final datos = snapshot.data!;
         // Primera vez: todavia no sabemos quien es.
-        if (datos.dueno == null) {
+        final dueno = datos.dueno;
+        // Primera vez: todavia no sabemos quien es.
+        if (dueno == null) {
           return PantallaBienvenida(alTerminar: _recargar);
         }
-        return _perfil(datos.dueno!, datos.mascotas);
+        // Cuenta protegida y aun no desbloqueada en esta ejecucion.
+        if (dueno.tienePin && !Seguridad.sesionAbierta) {
+          return PantallaBloqueo(
+            dueno: dueno,
+            // setState vacio: basta con redibujar, porque la condicion de
+            // arriba ya cambio (sesionAbierta ahora es true).
+            alDesbloquear: () => setState(() {}),
+          );
+        }
+        return _perfil(dueno, datos.mascotas);
       },
     );
   }
@@ -203,6 +218,43 @@ class _PantallaInicioState extends State<PantallaInicio> {
                       ),
                     ),
                   ],
+                ),
+                const SizedBox(height: 12),
+                Material(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(10),
+                  child: ListTile(
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    leading: Icon(
+                      dueno.tienePin ? Icons.lock : Icons.lock_open,
+                      color: dueno.tienePin
+                          ? ColoresDogTrips.navy
+                          : ColoresDogTrips.coral,
+                    ),
+                    title: Text(
+                      dueno.tienePin
+                          ? 'Seguridad de la cuenta'
+                          : 'Proteger mi cuenta',
+                    ),
+                    subtitle: Text(
+                      dueno.tienePin
+                          ? (dueno.usaBiometria
+                                ? 'PIN y huella activados'
+                                : 'PIN activado')
+                          : 'Entra con PIN o con tu huella',
+                    ),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () async {
+                      await Navigator.pushNamed(
+                        context,
+                        Rutas.seguridad,
+                        arguments: dueno,
+                      );
+                      if (mounted) _recargar();
+                    },
+                  ),
                 ),
                 const SizedBox(height: 32),
                 // Unico lugar del Inicio donde aparece el slogan.

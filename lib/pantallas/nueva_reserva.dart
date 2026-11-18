@@ -1,7 +1,9 @@
 import 'dart:math' as math;
 
+import 'package:geolocator/geolocator.dart';
 import 'package:intl/intl.dart';
 import 'package:material_ui/material_ui.dart';
+import 'package:speech_to_text/speech_to_text.dart';
 
 import '../datos/base_datos.dart';
 import '../main.dart';
@@ -37,6 +39,75 @@ class _PantallaNuevaReservaState extends State<PantallaNuevaReserva> {
   final _instrucciones = TextEditingController();
   bool _guardando = false;
 
+  // ── Dictado ──────────────────────────────────────────────────────────────
+  final _voz = SpeechToText();
+  bool _escuchando = false;
+
+  /// Lo que ya estaba escrito antes de empezar a dictar. El dictado se agrega
+  /// despues de esto en vez de reemplazarlo.
+  String _textoPrevio = '';
+
+  Future<void> _alternarDictado() async {
+    if (_escuchando) {
+      await _voz.stop();
+      if (mounted) setState(() => _escuchando = false);
+      return;
+    }
+
+    // initialize() pide el permiso del microfono la primera vez. Devuelve
+    // false si el usuario lo nego o si el telefono no tiene reconocedor.
+    final disponible = await _voz.initialize(
+      onStatus: (estado) {
+        // "done" / "notListening": el usuario dejo de hablar y el
+        // reconocedor se apago solo.
+        if (estado != 'listening' && mounted) {
+          setState(() => _escuchando = false);
+        }
+      },
+      onError: (error) {
+        if (!mounted) return;
+        setState(() => _escuchando = false);
+        // error_no_match: hablo pero no se entendio nada. No es grave.
+        if (error.errorMsg != 'error_no_match') {
+          _avisar('No se pudo reconocer la voz. Intenta de nuevo.');
+        }
+      },
+    );
+    if (!mounted) return;
+
+    if (!disponible) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('DogTrips no tiene permiso para usar el micrófono.'),
+          action: SnackBarAction(
+            label: 'Ajustes',
+            // Ya negado, la app no puede volver a preguntar: solo el usuario
+            // puede activarlo desde los ajustes del telefono.
+            onPressed: Geolocator.openAppSettings,
+          ),
+        ),
+      );
+      return;
+    }
+
+    _textoPrevio = _instrucciones.text.trim();
+    setState(() => _escuchando = true);
+    await _voz.listen(
+      // Resultados parciales: el texto aparece mientras el usuario habla, no
+      // hasta que termina. es_MX: espanol de Mexico.
+      listenOptions: SpeechListenOptions(
+        partialResults: true,
+        localeId: 'es_MX',
+      ),
+      onResult: (resultado) {
+        final dictado = resultado.recognizedWords;
+        _instrucciones.text = _textoPrevio.isEmpty
+            ? dictado
+            : '$_textoPrevio $dictado';
+      },
+    );
+  }
+
   @override
   void initState() {
     super.initState();
@@ -45,6 +116,8 @@ class _PantallaNuevaReservaState extends State<PantallaNuevaReserva> {
 
   @override
   void dispose() {
+    // Si el usuario sale mientras dicta, se apaga el microfono.
+    _voz.cancel();
     _instrucciones.dispose();
     super.dispose();
   }
@@ -199,12 +272,22 @@ class _PantallaNuevaReservaState extends State<PantallaNuevaReserva> {
               const SizedBox(height: 24),
               TextField(
                 controller: _instrucciones,
-                maxLines: 3,
+                maxLines: 4,
                 textCapitalization: TextCapitalization.sentences,
-                decoration: const InputDecoration(
+                decoration: InputDecoration(
                   labelText: 'Instrucciones para el paseador (opcional)',
-                  hintText: 'Las llaves están con el portero...',
+                  hintText: _escuchando
+                      ? 'Te escucho...'
+                      : 'Escribe o toca el micrófono para dictar',
                   alignLabelWithHint: true,
+                  suffixIcon: IconButton(
+                    tooltip: _escuchando ? 'Dejar de dictar' : 'Dictar',
+                    onPressed: _alternarDictado,
+                    icon: Icon(
+                      _escuchando ? Icons.stop_circle : Icons.mic_none,
+                      color: _escuchando ? Colors.red.shade700 : null,
+                    ),
+                  ),
                 ),
               ),
               const SizedBox(height: 24),

@@ -47,7 +47,8 @@ class BaseDatos {
   /// Version 2: se agrega la tabla del dueno.
   /// Version 3: una reserva puede llevar varios perros (tabla reserva_mascotas)
   ///            y las habilidades del paseador pasan a guardarse en JSON.
-  static const _version = 3;
+  /// Version 4: login con PIN y huella (columnas nuevas en la tabla dueno).
+  static const _version = 4;
 
   static const tablaDueno = 'dueno';
   static const tablaMascotas = 'mascotas';
@@ -114,6 +115,7 @@ class BaseDatos {
 
     await _crearTablasReservas(db);
     await _crearTablaDueno(db);
+    await _agregarColumnasSeguridad(db);
     await _sembrarPaseadores(db);
   }
 
@@ -162,6 +164,7 @@ class BaseDatos {
   Future<void> _actualizar(Database db, int anterior, int nueva) async {
     if (anterior < 2) await _crearTablaDueno(db);
     if (anterior < 3) await _migrarAVersion3(db);
+    if (anterior < 4) await _agregarColumnasSeguridad(db);
   }
 
   Future<void> _migrarAVersion3(Database db) async {
@@ -216,6 +219,28 @@ class BaseDatos {
         nombre TEXT    NOT NULL
       )
     ''');
+  }
+
+  /// Columnas del login (version 4): el hash del PIN, su sal y si el dueno
+  /// quiere entrar con huella.
+  ///
+  /// Antes de agregar cada columna se revisa si ya existe. Asi el paso se puede
+  /// repetir sin romperse, la misma leccion que dejo la migracion a medias de
+  /// la version 2.
+  Future<void> _agregarColumnasSeguridad(Database db) async {
+    final columnas = await db.rawQuery('PRAGMA table_info($tablaDueno)');
+    final existentes = {for (final c in columnas) c['name'] as String};
+
+    const nuevas = {
+      'pin_hash': 'TEXT',
+      'pin_sal': 'TEXT',
+      'usa_biometria': 'INTEGER NOT NULL DEFAULT 0',
+    };
+    for (final MapEntry(key: nombre, value: tipo) in nuevas.entries) {
+      if (!existentes.contains(nombre)) {
+        await db.execute('ALTER TABLE $tablaDueno ADD COLUMN $nombre $tipo');
+      }
+    }
   }
 
   /// Carga los paseadores de ejemplo.

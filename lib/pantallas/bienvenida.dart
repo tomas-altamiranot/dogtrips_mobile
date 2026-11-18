@@ -38,9 +38,14 @@ class _PantallaBienvenidaState extends State<PantallaBienvenida> {
 
     setState(() => _guardando = true);
     try {
-      await BaseDatos.instancia.guardarDueno(
-        Dueno(nombre: _nombre.text.trim()),
-      );
+      final dueno = Dueno(nombre: _nombre.text.trim());
+      await BaseDatos.instancia.guardarDueno(dueno);
+      if (!mounted) return;
+
+      // Segundo paso de crear la cuenta: el PIN y, si se quiere, la huella.
+      // Si el usuario regresa sin guardarlo, la cuenta queda sin proteger y
+      // puede hacerlo despues desde "Proteger mi cuenta".
+      await Navigator.pushNamed(context, Rutas.seguridad, arguments: dueno);
       widget.alTerminar();
     } on ErrorDeDatos catch (e) {
       // "mounted" es falso si el usuario salio de la pantalla mientras se

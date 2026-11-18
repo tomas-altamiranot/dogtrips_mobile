@@ -22,6 +22,12 @@
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
 
+    <!-- Dictado por voz de las instrucciones de la reserva (speech_to_text) -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO"/>
+
+    <!-- Entrar con huella o rostro (local_auth) -->
+    <uses-permission android:name="android.permission.USE_BIOMETRIC"/>
+
     <!-- La camara es util pero no obligatoria: sin esto Google Play ocultaria
          la app a los dispositivos que no tengan camara. -->
     <uses-feature android:name="android.hardware.camera" android:required="false"/>
@@ -79,6 +85,10 @@
         </intent>
         <intent>
             <action android:name="android.media.action.IMAGE_CAPTURE"/>
+        </intent>
+        <!-- El reconocedor de voz del telefono, para el dictado -->
+        <intent>
+            <action android:name="android.speech.RecognitionService"/>
         </intent>
     </queries>
 </manifest>
