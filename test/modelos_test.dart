@@ -48,8 +48,8 @@ void main() {
           );
 
       expect(conEdad(8).edadLegible, '8 meses');
-      expect(conEdad(12).edadLegible, '1 ano');
-      expect(conEdad(27).edadLegible, '2 anos y 3 meses');
+      expect(conEdad(12).edadLegible, '1 año');
+      expect(conEdad(27).edadLegible, '2 años y 3 meses');
     });
   });
 

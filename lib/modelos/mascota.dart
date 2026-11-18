@@ -4,7 +4,7 @@
 /// tarifa: con un String, un "Grande" con mayuscula o un "grandote" romperian
 /// el calculo en silencio. Con enum, el compilador obliga a cubrir los tres.
 enum Tamano {
-  pequeno('Pequeno', 1.00),
+  pequeno('Pequeño', 1.00),
   mediano('Mediano', 1.15),
   grande('Grande', 1.30);
 
@@ -60,8 +60,8 @@ class Mascota {
     final anos = edadMeses ~/ 12;
     final meses = edadMeses % 12;
     if (anos == 0) return '$meses ${meses == 1 ? "mes" : "meses"}';
-    if (meses == 0) return '$anos ${anos == 1 ? "ano" : "anos"}';
-    return '$anos ${anos == 1 ? "ano" : "anos"} y $meses ${meses == 1 ? "mes" : "meses"}';
+    if (meses == 0) return '$anos ${anos == 1 ? "año" : "años"}';
+    return '$anos ${anos == 1 ? "año" : "años"} y $meses ${meses == 1 ? "mes" : "meses"}';
   }
 
   Mascota copiarCon({int? id, String? fotoPath}) => Mascota(

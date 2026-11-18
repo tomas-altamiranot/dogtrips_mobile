@@ -1,11 +1,10 @@
-import 'dart:io';
-
 import 'package:material_ui/material_ui.dart';
 
 import '../datos/base_datos.dart';
 import '../main.dart';
 import '../modelos/dueno.dart';
 import '../modelos/mascota.dart';
+import 'avatar_mascota.dart';
 import 'bienvenida.dart';
 
 /// Lo que el Inicio necesita para dibujarse.
@@ -46,7 +45,11 @@ class _PantallaInicioState extends State<PantallaInicio> {
     return _DatosInicio(dueno, mascotas);
   }
 
-  void _recargar() => setState(() => _futuro = _cargar());
+  // Llaves y no flecha dentro de setState: con flecha, la asignacion devolveria
+  // el Future y setState lanzaria un error en vez de redibujar.
+  void _recargar() => setState(() {
+        _futuro = _cargar();
+      });
 
   /// Abre otra pantalla y, al volver, recarga: el usuario pudo haber agregado
   /// o borrado un perro mientras estaba alla.
@@ -144,7 +147,9 @@ class _PantallaInicioState extends State<PantallaInicio> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 if (mascotas.isEmpty)
-                  _SinMascotas(alTocar: () => _irYVolver(Rutas.misMascotas))
+                  // Directo al formulario: el usuario ya dijo que quiere
+                  // registrar a su perro, no hay que pasar por la lista vacia.
+                  _SinMascotas(alTocar: () => _irYVolver(Rutas.formMascota))
                 else ...[
                   const Text(
                     '¿Quién sale a pasear hoy?',
@@ -160,13 +165,10 @@ class _PantallaInicioState extends State<PantallaInicio> {
                     runSpacing: 8,
                     children: [
                       for (final m in mascotas)
-                        FilterChip(
-                          avatar: _AvatarMascota(mascota: m, radio: 12),
-                          label: Text(m.nombre),
-                          selected: _seleccion.contains(m.id),
-                          selectedColor:
-                              ColoresDogTrips.coral.withValues(alpha: 0.25),
-                          onSelected: (si) => setState(() {
+                        _ChipMascota(
+                          mascota: m,
+                          elegida: _seleccion.contains(m.id),
+                          alCambiar: (si) => setState(() {
                             si ? _seleccion.add(m.id!) : _seleccion.remove(m.id);
                           }),
                         ),
@@ -368,6 +370,45 @@ class _Encabezado extends StatelessWidget {
   }
 }
 
+/// Chip de un perro en "¿Quien sale a pasear hoy?".
+///
+/// Los dos estados deben distinguirse de un vistazo: elegido va relleno de
+/// coral con palomita; no elegido, blanco con borde gris.
+class _ChipMascota extends StatelessWidget {
+  const _ChipMascota({
+    required this.mascota,
+    required this.elegida,
+    required this.alCambiar,
+  });
+
+  final Mascota mascota;
+  final bool elegida;
+  final ValueChanged<bool> alCambiar;
+
+  @override
+  Widget build(BuildContext context) {
+    return FilterChip(
+      // Con palomita no cabe tambien el avatar: se muestra uno u otro.
+      avatar: elegida ? null : AvatarMascota(mascota: mascota, radio: 12),
+      label: Text(mascota.nombre),
+      selected: elegida,
+      onSelected: alCambiar,
+      showCheckmark: true,
+      checkmarkColor: Colors.white,
+      selectedColor: ColoresDogTrips.coral,
+      backgroundColor: Colors.white,
+      labelStyle: TextStyle(
+        color: elegida ? Colors.white : ColoresDogTrips.navy,
+        fontWeight: elegida ? FontWeight.bold : FontWeight.normal,
+      ),
+      side: BorderSide(
+        color: elegida ? ColoresDogTrips.coral : Colors.black26,
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
+    );
+  }
+}
+
 /// Tarjeta que aparece cuando el dueno aun no registra ningun perro.
 class _SinMascotas extends StatelessWidget {
   const _SinMascotas({required this.alTocar});
@@ -410,30 +451,6 @@ class _SinMascotas extends StatelessWidget {
           ),
         ],
       ),
-    );
-  }
-}
-
-/// Foto de la mascota si tiene, o su inicial si no.
-class _AvatarMascota extends StatelessWidget {
-  const _AvatarMascota({required this.mascota, required this.radio});
-
-  final Mascota mascota;
-  final double radio;
-
-  @override
-  Widget build(BuildContext context) {
-    return CircleAvatar(
-      radius: radio,
-      backgroundColor: ColoresDogTrips.navy,
-      backgroundImage:
-          mascota.tieneFoto ? FileImage(File(mascota.fotoPath!)) : null,
-      child: mascota.tieneFoto
-          ? null
-          : Text(
-              mascota.nombre.characters.first.toUpperCase(),
-              style: TextStyle(color: Colors.white, fontSize: radio * 0.9),
-            ),
     );
   }
 }

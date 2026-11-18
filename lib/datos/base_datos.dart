@@ -219,6 +219,20 @@ class BaseDatos {
     }
   }
 
+  Future<void> actualizarMascota(Mascota m) async {
+    try {
+      final db = await _base;
+      await db.update(
+        tablaMascotas,
+        m.aMapa()..remove('id'),
+        where: 'id = ?',
+        whereArgs: [m.id],
+      );
+    } catch (e) {
+      throw ErrorDeDatos('No se pudieron guardar los cambios.', e);
+    }
+  }
+
   Future<void> borrarMascota(int id) async {
     try {
       final db = await _base;

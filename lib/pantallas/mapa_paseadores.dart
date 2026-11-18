@@ -54,6 +54,18 @@ class _PantallaMapaPaseadoresState extends State<PantallaMapaPaseadores> {
 
   final _controlMapa = MapController();
 
+  /// Permite cerrar la hoja de paseadores desde el codigo (al elegir uno).
+  final _controlHoja = DraggableScrollableController();
+
+  /// Alto de la hoja cerrada, como fraccion del alto del mapa.
+  static const _hojaCerrada = 0.13;
+
+  @override
+  void dispose() {
+    _controlHoja.dispose();
+    super.dispose();
+  }
+
   @override
   void initState() {
     super.initState();
@@ -112,7 +124,7 @@ class _PantallaMapaPaseadoresState extends State<PantallaMapaPaseadores> {
       if (permiso == LocationPermission.deniedForever) {
         return (
           punto: null,
-          aviso: 'Permiso de ubicacion bloqueado. Actívalo en los ajustes.'
+          aviso: 'Permiso de ubicacion bloqueado. Actívalo en los ajustes.',
         );
       }
       if (permiso == LocationPermission.denied) {
@@ -132,7 +144,10 @@ class _PantallaMapaPaseadoresState extends State<PantallaMapaPaseadores> {
     }
   }
 
-  void _recargar() => setState(() => _futuro = _cargar());
+  // Llaves y no flecha dentro de setState: ver el comentario en inicio.dart.
+  void _recargar() => setState(() {
+    _futuro = _cargar();
+  });
 
   void _mostrarPaseador(Paseador pas, LatLng centro) {
     final km = BaseDatos.distanciaKm(
@@ -149,6 +164,18 @@ class _PantallaMapaPaseadoresState extends State<PantallaMapaPaseadores> {
       ),
       builder: (hoja) => _ResumenPaseador(paseador: pas, distanciaKm: km),
     );
+  }
+
+  /// Se elige un paseador desde la lista: se cierra la hoja, el mapa vuela a
+  /// su pin y se abre su tarjeta, igual que si se hubiera tocado el pin.
+  void _elegirDeLista(Paseador pas, LatLng centro) {
+    _controlHoja.animateTo(
+      _hojaCerrada,
+      duration: const Duration(milliseconds: 250),
+      curve: Curves.easeOut,
+    );
+    _controlMapa.move(LatLng(pas.latitud, pas.longitud), 14.5);
+    _mostrarPaseador(pas, centro);
   }
 
   Marker _marcador(Paseador pas, LatLng centro, {required bool enZona}) {
@@ -172,6 +199,7 @@ class _PantallaMapaPaseadoresState extends State<PantallaMapaPaseadores> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      // Sin drawer: asi el AppBar muestra la flecha de regresar.
       appBar: AppBar(
         title: const Text('Paseadores cerca de ti'),
         actions: [
@@ -182,7 +210,6 @@ class _PantallaMapaPaseadoresState extends State<PantallaMapaPaseadores> {
           ),
         ],
       ),
-      drawer: const MenuLateral(),
       body: FutureBuilder<_DatosMapa>(
         future: _futuro,
         builder: (context, snapshot) {
@@ -227,60 +254,84 @@ class _PantallaMapaPaseadoresState extends State<PantallaMapaPaseadores> {
               if (datos.avisoUbicacion != null)
                 _BarraAviso(texto: datos.avisoUbicacion!),
               Expanded(
-                child: FlutterMap(
-                  mapController: _controlMapa,
-                  options: MapOptions(
-                    initialCenter: datos.centro,
-                    // A este zoom el circulo de 5 km cabe completo en pantalla.
-                    initialZoom: 12.5,
-                  ),
+                // Stack: la hoja de paseadores flota encima del mapa.
+                child: Stack(
                   children: [
-                    TileLayer(
-                      urlTemplate:
-                          'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                      // OpenStreetMap pide identificarse. Sin esto, su politica
-                      // de uso permite bloquear las peticiones.
-                      userAgentPackageName: 'com.dogtrips.dogtrips_mobile',
-                      maxNativeZoom: 19,
-                    ),
-                    // El area "cerca de ti", en metros reales: crece y se
-                    // encoge con el zoom igual que las calles.
-                    CircleLayer(
-                      circles: [
-                        CircleMarker(
-                          point: datos.centro,
-                          radius: _radioZonaKm * 1000,
-                          useRadiusInMeter: true,
-                          color: ColoresDogTrips.coral.withValues(alpha: 0.10),
-                          borderColor: ColoresDogTrips.coral,
-                          borderStrokeWidth: 2,
+                    FlutterMap(
+                      mapController: _controlMapa,
+                      options: MapOptions(
+                        initialCenter: datos.centro,
+                        // A este zoom el circulo de 5 km cabe completo en pantalla.
+                        initialZoom: 12.5,
+                      ),
+                      children: [
+                        TileLayer(
+                          urlTemplate:
+                              'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                          // OpenStreetMap pide identificarse. Sin esto, su politica
+                          // de uso permite bloquear las peticiones.
+                          userAgentPackageName: 'com.dogtrips.dogtrips_mobile',
+                          maxNativeZoom: 19,
+                          // Guarda en disco los mosaicos ya descargados: el mapa
+                          // carga mas rapido y no se le piden de nuevo al servidor
+                          // de OpenStreetMap, que limita a quien pide de mas.
+                          tileProvider: NetworkTileProvider(
+                            cachingProvider:
+                                BuiltInMapCachingProvider.getOrCreateInstance(),
+                          ),
+                          // Flutter guarda en memoria hasta los mosaicos que
+                          // fallaron, y por eso no los volvia a pedir: quedaban
+                          // cuadros grises. Asi se descartan los fallidos y se
+                          // reintentan cuando vuelven a verse.
+                          evictErrorTileStrategy:
+                              EvictErrorTileStrategy.notVisibleRespectMargin,
+                        ),
+                        // El area "cerca de ti", en metros reales: crece y se
+                        // encoge con el zoom igual que las calles.
+                        CircleLayer(
+                          circles: [
+                            CircleMarker(
+                              point: datos.centro,
+                              radius: _radioZonaKm * 1000,
+                              useRadiusInMeter: true,
+                              color: ColoresDogTrips.coral.withValues(
+                                alpha: 0.10,
+                              ),
+                              borderColor: ColoresDogTrips.coral,
+                              borderStrokeWidth: 2,
+                            ),
+                          ],
+                        ),
+                        MarkerLayer(
+                          markers: [
+                            // El usuario, solo si la ubicacion es real.
+                            if (datos.ubicacionReal)
+                              Marker(
+                                point: datos.centro,
+                                width: 26,
+                                height: 26,
+                                child: const _PuntoUsuario(),
+                              ),
+                            // Un pin por paseador. Los de fuera van primero para
+                            // que, si se enciman, los de dentro queden encima.
+                            for (final pas in datos.fueraDeZona)
+                              _marcador(pas, datos.centro, enZona: false),
+                            for (final pas in datos.enZona)
+                              _marcador(pas, datos.centro, enZona: true),
+                          ],
                         ),
                       ],
                     ),
-                    MarkerLayer(
-                      markers: [
-                        // El usuario, solo si la ubicacion es real.
-                        if (datos.ubicacionReal)
-                          Marker(
-                            point: datos.centro,
-                            width: 26,
-                            height: 26,
-                            child: const _PuntoUsuario(),
-                          ),
-                        // Un pin por paseador. Los de fuera van primero para
-                        // que, si se enciman, los de dentro queden encima.
-                        for (final pas in datos.fueraDeZona)
-                          _marcador(pas, datos.centro, enZona: false),
-                        for (final pas in datos.enZona)
-                          _marcador(pas, datos.centro, enZona: true),
-                      ],
+                    _HojaPaseadores(
+                      control: _controlHoja,
+                      alturaMinima: _hojaCerrada,
+                      centro: datos.centro,
+                      enZona: datos.enZona,
+                      fueraDeZona: datos.fueraDeZona,
+                      alElegir: (pas) => _elegirDeLista(pas, datos.centro),
                     ),
                   ],
                 ),
-              ),
-              _BarraResumen(
-                enZona: datos.enZona.length,
-                fueraDeZona: datos.fueraDeZona.length,
               ),
             ],
           );
@@ -358,7 +409,11 @@ class _BarraAviso extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       child: Row(
         children: [
-          const Icon(Icons.info_outline, size: 18, color: ColoresDogTrips.coral),
+          const Icon(
+            Icons.info_outline,
+            size: 18,
+            color: ColoresDogTrips.coral,
+          ),
           const SizedBox(width: 10),
           Expanded(
             child: Text(
@@ -372,34 +427,198 @@ class _BarraAviso extends StatelessWidget {
   }
 }
 
-class _BarraResumen extends StatelessWidget {
-  const _BarraResumen({required this.enZona, required this.fueraDeZona});
+/// Hoja que se arrastra hacia arriba desde el borde inferior del mapa.
+///
+/// Cerrada muestra el resumen ("7 en tu zona"); abierta, la lista de todos los
+/// paseadores del mas cercano al mas lejano: primero los de tu zona y, al
+/// seguir bajando, los de fuera.
+class _HojaPaseadores extends StatelessWidget {
+  const _HojaPaseadores({
+    required this.control,
+    required this.alturaMinima,
+    required this.centro,
+    required this.enZona,
+    required this.fueraDeZona,
+    required this.alElegir,
+  });
 
-  final int enZona;
-  final int fueraDeZona;
+  final DraggableScrollableController control;
+  final double alturaMinima;
+  final LatLng centro;
+  final List<Paseador> enZona;
+  final List<Paseador> fueraDeZona;
+  final ValueChanged<Paseador> alElegir;
+
+  double _km(Paseador pas) => BaseDatos.distanciaKm(
+    centro.latitude,
+    centro.longitude,
+    pas.latitud,
+    pas.longitud,
+  );
+
+  @override
+  Widget build(BuildContext context) {
+    return DraggableScrollableSheet(
+      controller: control,
+      initialChildSize: alturaMinima,
+      minChildSize: alturaMinima,
+      maxChildSize: 0.85,
+      // snap: al soltarla, la hoja se acomoda cerrada o abierta, no a medias.
+      snap: true,
+      builder: (context, scroll) {
+        return Container(
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
+            boxShadow: [BoxShadow(color: Colors.black26, blurRadius: 10)],
+          ),
+          // El ListView usa el controlador de la hoja: asi el mismo gesto
+          // primero sube la hoja y, ya arriba, desplaza la lista.
+          child: ListView(
+            controller: scroll,
+            padding: EdgeInsets.zero,
+            children: [
+              const SizedBox(height: 10),
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.black26,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+                child: Row(
+                  children: [
+                    const Icon(
+                      Icons.place,
+                      size: 20,
+                      color: ColoresDogTrips.coral,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      '${enZona.length} en tu zona',
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                      ),
+                    ),
+                    Text(
+                      '  ·  ${fueraDeZona.length} más lejos',
+                      style: const TextStyle(color: Colors.black54),
+                    ),
+                    const Spacer(),
+                    const Icon(Icons.keyboard_arrow_up, color: Colors.black45),
+                  ],
+                ),
+              ),
+              if (enZona.isNotEmpty) ...[
+                const _TituloSeccion('En tu zona · 5 km'),
+                for (final pas in enZona)
+                  _FilaPaseador(
+                    paseador: pas,
+                    km: _km(pas),
+                    alTocar: () => alElegir(pas),
+                  ),
+              ],
+              if (fueraDeZona.isNotEmpty) ...[
+                const _TituloSeccion('Más lejos'),
+                for (final pas in fueraDeZona)
+                  _FilaPaseador(
+                    paseador: pas,
+                    km: _km(pas),
+                    alTocar: () => alElegir(pas),
+                  ),
+              ],
+              const SizedBox(height: 24),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _TituloSeccion extends StatelessWidget {
+  const _TituloSeccion(this.texto);
+
+  final String texto;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: double.infinity,
-      color: Colors.white,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      child: Row(
+      color: ColoresDogTrips.arena,
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+      child: Text(
+        texto.toUpperCase(),
+        style: const TextStyle(
+          fontSize: 12,
+          letterSpacing: 1.2,
+          fontWeight: FontWeight.w600,
+          color: ColoresDogTrips.navy,
+        ),
+      ),
+    );
+  }
+}
+
+class _FilaPaseador extends StatelessWidget {
+  const _FilaPaseador({
+    required this.paseador,
+    required this.km,
+    required this.alTocar,
+  });
+
+  final Paseador paseador;
+  final double km;
+  final VoidCallback alTocar;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListTile(
+      onTap: alTocar,
+      // Sin Hero aqui: la tarjeta del pin ya usa la etiqueta 'paseador-id', y
+      // dos Hero con la misma etiqueta en una pantalla hacen tronar la app.
+      leading: CircleAvatar(
+        backgroundColor: ColoresDogTrips.navy,
+        child: Text(
+          paseador.nombre.characters.first,
+          style: const TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+      ),
+      title: Row(
         children: [
-          const Icon(Icons.place, size: 18, color: ColoresDogTrips.coral),
-          const SizedBox(width: 8),
-          Text(
-            '$enZona en tu zona',
-            style: const TextStyle(fontWeight: FontWeight.w600),
+          Flexible(child: Text(paseador.nombre)),
+          if (paseador.verificado) ...[
+            const SizedBox(width: 4),
+            const Icon(Icons.verified, size: 15, color: ColoresDogTrips.coral),
+          ],
+        ],
+      ),
+      subtitle: Text('${paseador.zona} · a ${km.toStringAsFixed(1)} km'),
+      trailing: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.star, size: 15, color: ColoresDogTrips.coral),
+              Text(
+                ' ${paseador.calificacion.toStringAsFixed(1)}',
+                style: const TextStyle(fontWeight: FontWeight.bold),
+              ),
+            ],
           ),
           Text(
-            '  ·  $fueraDeZona mas lejos',
-            style: const TextStyle(fontSize: 12.5, color: Colors.black54),
-          ),
-          const Spacer(),
-          const Text(
-            'Toca un pin',
-            style: TextStyle(fontSize: 12, color: Colors.black54),
+            '\$${paseador.tarifaHora.toStringAsFixed(0)}/h',
+            style: const TextStyle(fontSize: 12, color: Colors.black54),
           ),
         ],
       ),
@@ -470,8 +689,11 @@ class _ResumenPaseador extends StatelessWidget {
                           ),
                           if (paseador.verificado) ...[
                             const SizedBox(width: 6),
-                            const Icon(Icons.verified,
-                                size: 16, color: ColoresDogTrips.coral),
+                            const Icon(
+                              Icons.verified,
+                              size: 16,
+                              color: ColoresDogTrips.coral,
+                            ),
                           ],
                         ],
                       ),
@@ -479,7 +701,9 @@ class _ResumenPaseador extends StatelessWidget {
                       Text(
                         '${paseador.zona}  ·  a ${distanciaKm.toStringAsFixed(1)} km',
                         style: const TextStyle(
-                            fontSize: 13, color: Colors.black54),
+                          fontSize: 13,
+                          color: Colors.black54,
+                        ),
                       ),
                     ],
                   ),
@@ -547,11 +771,14 @@ class _Dato extends StatelessWidget {
         children: [
           Icon(icono, size: 19, color: ColoresDogTrips.coral),
           const SizedBox(height: 5),
-          Text(valor,
-              style:
-                  const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-          Text(etiqueta,
-              style: const TextStyle(fontSize: 11, color: Colors.black54)),
+          Text(
+            valor,
+            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+          ),
+          Text(
+            etiqueta,
+            style: const TextStyle(fontSize: 11, color: Colors.black54),
+          ),
         ],
       ),
     );

@@ -1,8 +1,11 @@
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:material_ui/material_ui.dart';
 
+import 'modelos/mascota.dart';
+import 'pantallas/form_mascota.dart';
 import 'pantallas/inicio.dart';
 import 'pantallas/mapa_paseadores.dart';
+import 'pantallas/mis_mascotas.dart';
 
 Future<void> main() async {
   // Hay que esperar a que Flutter enlace con la plataforma antes de hacer
@@ -35,6 +38,7 @@ class Rutas {
   static const nuevaReserva = '/reservar';
   static const misReservas = '/reservas';
   static const misMascotas = '/mascotas';
+  static const formMascota = '/mascotas/form';
 }
 
 class AppDogTrips extends StatelessWidget {
@@ -50,6 +54,12 @@ class AppDogTrips extends StatelessWidget {
       routes: {
         Rutas.inicio: (_) => const PantallaInicio(),
         Rutas.mapa: (_) => const PantallaMapaPaseadores(),
+        Rutas.misMascotas: (_) => const PantallaMisMascotas(),
+        // La mascota a editar llega como argumento de la ruta; si no llega
+        // nada, el formulario crea una nueva.
+        Rutas.formMascota: (contexto) => PantallaFormMascota(
+              mascota: ModalRoute.of(contexto)!.settings.arguments as Mascota?,
+            ),
       },
       // Red de seguridad: sin esto, navegar a una ruta no registrada lanza una
       // excepcion y tumba la app. Mientras el proyecto crece, es preferible una
@@ -107,7 +117,6 @@ class _EnConstruccion extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('En construccion')),
-      drawer: const MenuLateral(),
       body: Center(
         child: Padding(
           padding: const EdgeInsets.all(32),
@@ -132,9 +141,10 @@ class _EnConstruccion extends StatelessWidget {
 /// Logo para el AppBar: la silueta del perro y el nombre.
 ///
 /// No se usa logo.png porque esa imagen ya trae el slogan, y a la altura de un
-/// AppBar se vuelve ilegible.
+/// AppBar se vuelve ilegible. El nombre tampoco se escribe con un Text: es un
+/// recorte del logo original, para que la tipografia sea exactamente la misma.
 class LogoDogTrips extends StatelessWidget {
-  const LogoDogTrips({super.key, this.altura = 28});
+  const LogoDogTrips({super.key, this.altura = 30});
 
   final double altura;
 
@@ -142,6 +152,9 @@ class LogoDogTrips extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       mainAxisSize: MainAxisSize.min,
+      // Alineados por abajo: las patas del perro y la base de las letras
+      // quedan sobre la misma linea, como en el logo original.
+      crossAxisAlignment: CrossAxisAlignment.end,
       children: [
         Image.asset(
           'assets/imagenes/FAVICON.png',
@@ -149,14 +162,13 @@ class LogoDogTrips extends StatelessWidget {
           errorBuilder: (_, _, _) =>
               Icon(Icons.pets, color: Colors.white, size: altura),
         ),
-        const SizedBox(width: 10),
-        Text(
-          'DOGTRIPS',
-          style: TextStyle(
-            color: Colors.white,
-            fontSize: altura * 0.68,
-            fontWeight: FontWeight.w600,
-            letterSpacing: 4,
+        SizedBox(width: altura * 0.4),
+        Image.asset(
+          'assets/imagenes/wordmark-blanco.png',
+          height: altura * 0.5,
+          errorBuilder: (_, _, _) => const Text(
+            'DOGTRIPS',
+            style: TextStyle(color: Colors.white, letterSpacing: 4),
           ),
         ),
       ],
@@ -164,10 +176,11 @@ class LogoDogTrips extends StatelessWidget {
   }
 }
 
-/// Menu lateral compartido por todas las pantallas.
+/// Menu lateral. Solo lo tiene el Inicio.
 ///
-/// Vive aqui y no dentro de una pantalla porque lo usan varias: si estuviera en
-/// el inicio, el mapa tendria que importar el inicio solo para reusar el menu.
+/// Las demas pantallas no lo llevan a proposito: cuando un Scaffold tiene
+/// drawer, el AppBar pone el icono del menu justo donde iria la flecha de
+/// regresar, y el usuario se queda sin forma obvia de volver.
 class MenuLateral extends StatelessWidget {
   const MenuLateral({super.key});
 
