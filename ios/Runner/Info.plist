@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CADisableMinimumFrameDurationOnPhone</key>
+	<true/>
+	<key>CFBundleDevelopmentRegion</key>
+	<string>$(DEVELOPMENT_LANGUAGE)</string>
+	<key>CFBundleDisplayName</key>
+	<string>DogTrips</string>
+	<key>CFBundleExecutable</key>
+	<string>$(EXECUTABLE_NAME)</string>
+	<key>CFBundleIdentifier</key>
+	<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+	<key>CFBundleInfoDictionaryVersion</key>
+	<string>6.0</string>
+	<key>CFBundleName</key>
+	<string>dogtrips_mobile</string>
+	<key>CFBundlePackageType</key>
+	<string>APPL</string>
+	<key>CFBundleShortVersionString</key>
+	<string>$(FLUTTER_BUILD_NAME)</string>
+	<key>CFBundleSignature</key>
+	<string>????</string>
+	<key>CFBundleVersion</key>
+	<string>$(FLUTTER_BUILD_NUMBER)</string>
+	<key>LSRequiresIPhoneOS</key>
+	<true/>
+
+	<!-- Permisos: el equivalente de iPhone a los uses-permission del
+	     AndroidManifest.xml. La diferencia: iOS exige un texto que explique
+	     POR QUE se pide cada permiso, y lo muestra en el aviso. Si falta la
+	     clave, iOS no pregunta: cierra la app en cuanto se pide el permiso. -->
+
+	<!-- Foto de la mascota (image_picker) -->
+	<key>NSCameraUsageDescription</key>
+	<string>DogTrips usa la camara para tomar la foto de tu mascota.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>DogTrips usa tu galeria para elegir la foto de tu mascota.</string>
+
+	<!-- Tu ubicacion para el mapa de paseadores (geolocator) -->
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>DogTrips usa tu ubicacion para mostrarte los paseadores que estan cerca.</string>
+
+	<!-- Dictado de las instrucciones de la reserva (speech_to_text).
+	     En iPhone son dos permisos: el microfono y el reconocimiento de voz. -->
+	<key>NSMicrophoneUsageDescription</key>
+	<string>DogTrips usa el microfono para que dictes las instrucciones del paseo.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>DogTrips convierte tu voz en texto para escribir las instrucciones del paseo.</string>
+
+	<!-- Entrar con Face ID (local_auth). La huella (Touch ID) no lo necesita. -->
+	<key>NSFaceIDUsageDescription</key>
+	<string>DogTrips usa Face ID para abrir tu cuenta sin escribir el PIN.</string>
+
+	<key>UIApplicationSceneManifest</key>
+	<dict>
+		<key>UIApplicationSupportsMultipleScenes</key>
+		<false/>
+		<key>UISceneConfigurations</key>
+		<dict>
+			<key>UIWindowSceneSessionRoleApplication</key>
+			<array>
+				<dict>
+					<key>UISceneClassName</key>
+					<string>UIWindowScene</string>
+					<key>UISceneConfigurationName</key>
+					<string>flutter</string>
+					<key>UISceneDelegateClassName</key>
+					<string>$(PRODUCT_MODULE_NAME).SceneDelegate</string>
+					<key>UISceneStoryboardFile</key>
+					<string>Main</string>
+				</dict>
+			</array>
+		</dict>
+	</dict>
+	<key>UIApplicationSupportsIndirectInputEvents</key>
+	<true/>
+	<key>UILaunchStoryboardName</key>
+	<string>LaunchScreen</string>
+	<key>UIMainStoryboardFile</key>
+	<string>Main</string>
+	<key>UISupportedInterfaceOrientations</key>
+	<array>
+		<string>UIInterfaceOrientationPortrait</string>
+		<string>UIInterfaceOrientationLandscapeLeft</string>
+		<string>UIInterfaceOrientationLandscapeRight</string>
+	</array>
+	<key>UISupportedInterfaceOrientations~ipad</key>
+	<array>
+		<string>UIInterfaceOrientationPortrait</string>
+		<string>UIInterfaceOrientationPortraitUpsideDown</string>
+		<string>UIInterfaceOrientationLandscapeLeft</string>
+		<string>UIInterfaceOrientationLandscapeRight</string>
+	</array>
+</dict>
+</plist>
