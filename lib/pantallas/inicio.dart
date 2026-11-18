@@ -48,8 +48,8 @@ class _PantallaInicioState extends State<PantallaInicio> {
   // Llaves y no flecha dentro de setState: con flecha, la asignacion devolveria
   // el Future y setState lanzaria un error en vez de redibujar.
   void _recargar() => setState(() {
-        _futuro = _cargar();
-      });
+    _futuro = _cargar();
+  });
 
   /// Abre otra pantalla y, al volver, recarga: el usuario pudo haber agregado
   /// o borrado un perro mientras estaba alla.
@@ -165,11 +165,13 @@ class _PantallaInicioState extends State<PantallaInicio> {
                     runSpacing: 8,
                     children: [
                       for (final m in mascotas)
-                        _ChipMascota(
+                        ChipMascota(
                           mascota: m,
                           elegida: _seleccion.contains(m.id),
                           alCambiar: (si) => setState(() {
-                            si ? _seleccion.add(m.id!) : _seleccion.remove(m.id);
+                            si
+                                ? _seleccion.add(m.id!)
+                                : _seleccion.remove(m.id);
                           }),
                         ),
                     ],
@@ -310,9 +312,9 @@ class _Encabezado extends StatelessWidget {
     final frase = mascotas.isEmpty
         ? 'Cuéntanos de tu perro para empezar.'
         : mascotas.length == 1
-            ? '${mascotas.first.nombre} espera su próxima aventura.'
-            : '${unirNombres(mascotas.map((m) => m.nombre).toList())} '
-                'esperan su próxima aventura.';
+        ? '${mascotas.first.nombre} espera su próxima aventura.'
+        : '${unirNombres(mascotas.map((m) => m.nombre).toList())} '
+              'esperan su próxima aventura.';
 
     return Container(
       padding: const EdgeInsets.fromLTRB(20, 8, 20, 28),
@@ -366,45 +368,6 @@ class _Encabezado extends StatelessWidget {
           ),
         ],
       ),
-    );
-  }
-}
-
-/// Chip de un perro en "¿Quien sale a pasear hoy?".
-///
-/// Los dos estados deben distinguirse de un vistazo: elegido va relleno de
-/// coral con palomita; no elegido, blanco con borde gris.
-class _ChipMascota extends StatelessWidget {
-  const _ChipMascota({
-    required this.mascota,
-    required this.elegida,
-    required this.alCambiar,
-  });
-
-  final Mascota mascota;
-  final bool elegida;
-  final ValueChanged<bool> alCambiar;
-
-  @override
-  Widget build(BuildContext context) {
-    return FilterChip(
-      // Con palomita no cabe tambien el avatar: se muestra uno u otro.
-      avatar: elegida ? null : AvatarMascota(mascota: mascota, radio: 12),
-      label: Text(mascota.nombre),
-      selected: elegida,
-      onSelected: alCambiar,
-      showCheckmark: true,
-      checkmarkColor: Colors.white,
-      selectedColor: ColoresDogTrips.coral,
-      backgroundColor: Colors.white,
-      labelStyle: TextStyle(
-        color: elegida ? Colors.white : ColoresDogTrips.navy,
-        fontWeight: elegida ? FontWeight.bold : FontWeight.normal,
-      ),
-      side: BorderSide(
-        color: elegida ? ColoresDogTrips.coral : Colors.black26,
-      ),
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
     );
   }
 }
@@ -500,7 +463,10 @@ class _BotonPrincipal extends StatelessWidget {
                     const SizedBox(height: 3),
                     Text(
                       detalle,
-                      style: const TextStyle(color: Colors.white70, fontSize: 13),
+                      style: const TextStyle(
+                        color: Colors.white70,
+                        fontSize: 13,
+                      ),
                     ),
                   ],
                 ),

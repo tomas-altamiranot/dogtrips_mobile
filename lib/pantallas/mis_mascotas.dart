@@ -91,8 +91,10 @@ class _PantallaMisMascotasState extends State<PantallaMisMascotas> {
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(12),
                 child: ListTile(
-                  contentPadding:
-                      const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 8,
+                  ),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),

@@ -6,6 +6,8 @@ import 'pantallas/form_mascota.dart';
 import 'pantallas/inicio.dart';
 import 'pantallas/mapa_paseadores.dart';
 import 'pantallas/mis_mascotas.dart';
+import 'pantallas/nueva_reserva.dart';
+import 'pantallas/perfil_paseador.dart';
 
 Future<void> main() async {
   // Hay que esperar a que Flutter enlace con la plataforma antes de hacer
@@ -58,8 +60,14 @@ class AppDogTrips extends StatelessWidget {
         // La mascota a editar llega como argumento de la ruta; si no llega
         // nada, el formulario crea una nueva.
         Rutas.formMascota: (contexto) => PantallaFormMascota(
-              mascota: ModalRoute.of(contexto)!.settings.arguments as Mascota?,
-            ),
+          mascota: ModalRoute.of(contexto)!.settings.arguments as Mascota?,
+        ),
+        Rutas.perfilPaseador: (contexto) => PantallaPerfilPaseador(
+          args: ModalRoute.of(contexto)!.settings.arguments as ArgsPaseador,
+        ),
+        Rutas.nuevaReserva: (contexto) => PantallaNuevaReserva(
+          args: ModalRoute.of(contexto)!.settings.arguments as ArgsPaseador,
+        ),
       },
       // Red de seguridad: sin esto, navegar a una ruta no registrada lanza una
       // excepcion y tumba la app. Mientras el proyecto crece, es preferible una
@@ -123,7 +131,11 @@ class _EnConstruccion extends StatelessWidget {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(Icons.construction, size: 56, color: ColoresDogTrips.coral),
+              const Icon(
+                Icons.construction,
+                size: 56,
+                color: ColoresDogTrips.coral,
+              ),
               const SizedBox(height: 14),
               Text(
                 'La pantalla "$ruta" todavia no esta lista.',

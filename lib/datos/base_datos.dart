@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:developer' as developer;
 import 'dart:math' as math;
 
@@ -41,14 +42,18 @@ class BaseDatos {
   static final BaseDatos instancia = BaseDatos._();
 
   static const _archivo = 'dogtrips.db';
+
   /// Version 1: mascotas, paseadores y reservas.
   /// Version 2: se agrega la tabla del dueno.
-  static const _version = 2;
+  /// Version 3: una reserva puede llevar varios perros (tabla reserva_mascotas)
+  ///            y las habilidades del paseador pasan a guardarse en JSON.
+  static const _version = 3;
 
   static const tablaDueno = 'dueno';
   static const tablaMascotas = 'mascotas';
   static const tablaPaseadores = 'paseadores';
   static const tablaReservas = 'reservas';
+  static const tablaReservaMascotas = 'reserva_mascotas';
 
   Database? _db;
 
@@ -107,18 +112,41 @@ class BaseDatos {
       )
     ''');
 
+    await _crearTablasReservas(db);
+    await _crearTablaDueno(db);
+    await _sembrarPaseadores(db);
+  }
+
+  /// Reservas y su "lista de invitados".
+  ///
+  /// Una reserva puede llevar varios perros y un perro puede ir a muchos
+  /// paseos: es una relacion de muchos a muchos, y en una base relacional eso
+  /// siempre se resuelve con una tabla intermedia. Cada fila de
+  /// reserva_mascotas dice "este perro va a este paseo".
+  Future<void> _crearTablasReservas(Database db) async {
     await db.execute('''
       CREATE TABLE $tablaReservas (
         id             INTEGER PRIMARY KEY AUTOINCREMENT,
-        mascota_id     INTEGER NOT NULL,
         paseador_id    INTEGER NOT NULL,
         fecha_hora     INTEGER NOT NULL,
         duracion_min   INTEGER NOT NULL,
         instrucciones  TEXT    NOT NULL DEFAULT '',
         estado         TEXT    NOT NULL,
         costo_estimado REAL    NOT NULL,
-        FOREIGN KEY (mascota_id)  REFERENCES $tablaMascotas (id) ON DELETE CASCADE,
         FOREIGN KEY (paseador_id) REFERENCES $tablaPaseadores (id)
+      )
+    ''');
+
+    // La llave primaria es la pareja: el mismo perro no puede aparecer dos
+    // veces en el mismo paseo. ON DELETE CASCADE borra la fila si se borra la
+    // reserva o el perro.
+    await db.execute('''
+      CREATE TABLE $tablaReservaMascotas (
+        reserva_id INTEGER NOT NULL,
+        mascota_id INTEGER NOT NULL,
+        PRIMARY KEY (reserva_id, mascota_id),
+        FOREIGN KEY (reserva_id) REFERENCES $tablaReservas (id) ON DELETE CASCADE,
+        FOREIGN KEY (mascota_id) REFERENCES $tablaMascotas (id) ON DELETE CASCADE
       )
     ''');
 
@@ -127,14 +155,51 @@ class BaseDatos {
     await db.execute(
       'CREATE INDEX idx_reservas_fecha ON $tablaReservas (fecha_hora DESC)',
     );
-
-    await _crearTablaDueno(db);
-    await _sembrarPaseadores(db);
   }
 
   /// Se ejecuta cuando la base del telefono es mas vieja que [_version].
+  /// Cada bloque lleva la base un paso adelante, sin perder lo que ya tenia.
   Future<void> _actualizar(Database db, int anterior, int nueva) async {
     if (anterior < 2) await _crearTablaDueno(db);
+    if (anterior < 3) await _migrarAVersion3(db);
+  }
+
+  Future<void> _migrarAVersion3(Database db) async {
+    // 1. Habilidades: de "a|b" a JSON ["a","b"].
+    final paseadores = await db.query(
+      tablaPaseadores,
+      columns: ['id', 'habilidades'],
+    );
+    for (final fila in paseadores) {
+      final texto = (fila['habilidades'] as String?) ?? '';
+      if (texto.startsWith('[')) continue; // ya estaba en JSON
+      final lista = texto.isEmpty ? <String>[] : texto.split('|');
+      await db.update(
+        tablaPaseadores,
+        {'habilidades': jsonEncode(lista)},
+        where: 'id = ?',
+        whereArgs: [fila['id']],
+      );
+    }
+
+    // 2. Reservas: la columna mascota_id sale de la tabla y pasa a la tabla
+    // intermedia. SQLite no permite quitar una columna en todas las versiones
+    // de Android, asi que se hace la receta estandar: renombrar la vieja,
+    // crear la nueva, copiar los datos y borrar la vieja.
+    await db.execute('DROP INDEX IF EXISTS idx_reservas_fecha');
+    await db.execute('ALTER TABLE $tablaReservas RENAME TO reservas_v2');
+    await _crearTablasReservas(db);
+    await db.execute('''
+      INSERT INTO $tablaReservas
+        (id, paseador_id, fecha_hora, duracion_min, instrucciones, estado, costo_estimado)
+      SELECT id, paseador_id, fecha_hora, duracion_min, instrucciones, estado, costo_estimado
+      FROM reservas_v2
+    ''');
+    await db.execute('''
+      INSERT INTO $tablaReservaMascotas (reserva_id, mascota_id)
+      SELECT id, mascota_id FROM reservas_v2
+    ''');
+    await db.execute('DROP TABLE reservas_v2');
   }
 
   /// CHECK (id = 1) hace que la tabla solo pueda tener una fila: un telefono,
@@ -236,9 +301,20 @@ class BaseDatos {
   Future<void> borrarMascota(int id) async {
     try {
       final db = await _base;
-      // ON DELETE CASCADE elimina tambien sus reservas: una reserva de una
-      // mascota que ya no existe no significa nada.
-      await db.delete(tablaMascotas, where: 'id = ?', whereArgs: [id]);
+      // Una transaccion es "todo o nada": si falla el segundo paso, el primero
+      // se deshace, y nunca queda la base a medias.
+      await db.transaction((txn) async {
+        // Primero las reservas en las que iba este perro: es lo que el dialogo
+        // de confirmacion le advierte al usuario.
+        await txn.delete(
+          tablaReservas,
+          where:
+              'id IN (SELECT reserva_id FROM $tablaReservaMascotas '
+              'WHERE mascota_id = ?)',
+          whereArgs: [id],
+        );
+        await txn.delete(tablaMascotas, where: 'id = ?', whereArgs: [id]);
+      });
     } catch (e) {
       throw ErrorDeDatos('No se pudo eliminar la mascota.', e);
     }
@@ -251,7 +327,10 @@ class BaseDatos {
   Future<List<Paseador>> listarPaseadores() async {
     try {
       final db = await _base;
-      final filas = await db.query(tablaPaseadores, orderBy: 'calificacion DESC');
+      final filas = await db.query(
+        tablaPaseadores,
+        orderBy: 'calificacion DESC',
+      );
       return filas.map(Paseador.desdeMapa).toList();
     } catch (e) {
       throw ErrorDeDatos('No se pudieron leer los paseadores.', e);
@@ -266,10 +345,13 @@ class BaseDatos {
   /// servidor.
   Future<List<Paseador>> paseadoresCercaDe(double lat, double lon) async {
     final todos = await listarPaseadores();
-    final conDistancia = todos
-        .map((pas) => (pas, _distanciaKm(lat, lon, pas.latitud, pas.longitud)))
-        .toList()
-      ..sort((a, b) => a.$2.compareTo(b.$2));
+    final conDistancia =
+        todos
+            .map(
+              (pas) => (pas, _distanciaKm(lat, lon, pas.latitud, pas.longitud)),
+            )
+            .toList()
+          ..sort((a, b) => a.$2.compareTo(b.$2));
     return conDistancia.map((par) => par.$1).toList();
   }
 
@@ -278,13 +360,19 @@ class BaseDatos {
   /// Haversine calcula la distancia sobre la superficie de la esfera, no la
   /// linea recta que la atraviesa. Para distancias dentro de una ciudad la
   /// diferencia es minima, pero es la formula correcta.
-  static double _distanciaKm(double lat1, double lon1, double lat2, double lon2) {
+  static double _distanciaKm(
+    double lat1,
+    double lon1,
+    double lat2,
+    double lon2,
+  ) {
     const radioTierra = 6371.0;
     double aRadianes(double g) => g * math.pi / 180.0;
 
     final dLat = aRadianes(lat2 - lat1);
     final dLon = aRadianes(lon2 - lon1);
-    final a = math.sin(dLat / 2) * math.sin(dLat / 2) +
+    final a =
+        math.sin(dLat / 2) * math.sin(dLat / 2) +
         math.cos(aRadianes(lat1)) *
             math.cos(aRadianes(lat2)) *
             math.sin(dLon / 2) *
@@ -293,43 +381,68 @@ class BaseDatos {
   }
 
   /// Expuesta para que las pantallas muestren "a 2.3 km de ti".
-  static double distanciaKm(double lat1, double lon1, double lat2, double lon2) =>
-      _distanciaKm(lat1, lon1, lat2, lon2);
+  static double distanciaKm(
+    double lat1,
+    double lon1,
+    double lat2,
+    double lon2,
+  ) => _distanciaKm(lat1, lon1, lat2, lon2);
 
   // ───────────────────────────────────────────────────────────────────────
   // Reservas
   // ───────────────────────────────────────────────────────────────────────
 
-  Future<Reserva> insertarReserva(Reserva r) async {
+  /// Guarda la reserva y su lista de perros.
+  ///
+  /// Va en una transaccion: si se guardara la reserva y fallara la lista de
+  /// perros, quedaria un paseo sin perros. Asi, o se guarda todo o nada.
+  Future<Reserva> insertarReserva(Reserva r, List<Mascota> mascotas) async {
     try {
       final db = await _base;
-      final id = await db.insert(tablaReservas, r.aMapa()..remove('id'));
+      final id = await db.transaction((txn) async {
+        final nuevoId = await txn.insert(
+          tablaReservas,
+          r.aMapa()..remove('id'),
+        );
+        for (final m in mascotas) {
+          await txn.insert(tablaReservaMascotas, {
+            'reserva_id': nuevoId,
+            'mascota_id': m.id,
+          });
+        }
+        return nuevoId;
+      });
       return r.copiarCon(id: id);
     } catch (e) {
       throw ErrorDeDatos('No se pudo guardar la reserva.', e);
     }
   }
 
-  /// Reservas con su mascota y su paseador ya resueltos.
+  /// Reservas con sus perros y su paseador ya resueltos.
   ///
-  /// La tabla guarda solo los ids, asi que hace falta unir las tres tablas. Se
-  /// hace en una sola consulta con JOIN en vez de leer las reservas y luego
-  /// consultar mascota y paseador una por una: eso serian 1 + 2N consultas en
-  /// vez de una.
+  /// Son dos consultas: una trae cada reserva unida a su paseador (JOIN), y
+  /// otra trae todas las parejas reserva-perro. Despues se agrupan en Dart.
+  /// Consultar los perros de cada reserva una por una serian 1 + N consultas.
   Future<List<ReservaCompleta>> listarReservas() async {
     try {
       final db = await _base;
+
+      final enlaces = await db.rawQuery('''
+        SELECT rm.reserva_id, m.*
+        FROM $tablaReservaMascotas rm
+        JOIN $tablaMascotas m ON m.id = rm.mascota_id
+        ORDER BY m.nombre
+      ''');
+      final perrosPorReserva = <int, List<Mascota>>{};
+      for (final f in enlaces) {
+        perrosPorReserva
+            .putIfAbsent(f['reserva_id'] as int, () => [])
+            .add(Mascota.desdeMapa(f));
+      }
+
       final filas = await db.rawQuery('''
         SELECT
-          r.id             AS r_id,
-          r.mascota_id     AS r_mascota_id,
-          r.paseador_id    AS r_paseador_id,
-          r.fecha_hora     AS r_fecha_hora,
-          r.duracion_min   AS r_duracion_min,
-          r.instrucciones  AS r_instrucciones,
-          r.estado         AS r_estado,
-          r.costo_estimado AS r_costo_estimado,
-          m.*,
+          r.*,
           p.id                AS p_id,
           p.nombre            AS p_nombre,
           p.zona              AS p_zona,
@@ -342,25 +455,14 @@ class BaseDatos {
           p.verificado        AS p_verificado,
           p.habilidades       AS p_habilidades
         FROM $tablaReservas r
-        JOIN $tablaMascotas   m ON m.id = r.mascota_id
         JOIN $tablaPaseadores p ON p.id = r.paseador_id
         ORDER BY r.fecha_hora DESC
       ''');
 
       return filas.map((f) {
-        // Los prefijos r_ y p_ existen porque las tres tablas tienen columnas
-        // con el mismo nombre (id, nombre). Sin renombrar, una pisaria a la
-        // otra en el mapa de resultados.
-        final reserva = Reserva.desdeMapa({
-          'id': f['r_id'],
-          'mascota_id': f['r_mascota_id'],
-          'paseador_id': f['r_paseador_id'],
-          'fecha_hora': f['r_fecha_hora'],
-          'duracion_min': f['r_duracion_min'],
-          'instrucciones': f['r_instrucciones'],
-          'estado': f['r_estado'],
-          'costo_estimado': f['r_costo_estimado'],
-        });
+        // El prefijo p_ existe porque reservas y paseadores tienen una columna
+        // con el mismo nombre (id). Sin renombrar, una pisaria a la otra.
+        final reserva = Reserva.desdeMapa(f);
         final paseador = Paseador.desdeMapa({
           'id': f['p_id'],
           'nombre': f['p_nombre'],
@@ -376,7 +478,7 @@ class BaseDatos {
         });
         return ReservaCompleta(
           reserva: reserva,
-          mascota: Mascota.desdeMapa(f),
+          mascotas: perrosPorReserva[reserva.id] ?? const [],
           paseador: paseador,
         );
       }).toList();

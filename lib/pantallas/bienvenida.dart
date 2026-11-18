@@ -94,7 +94,8 @@ class _PantallaBienvenidaState extends State<PantallaBienvenida> {
                       labelText: '¿Cómo te llamas?',
                       prefixIcon: Icon(Icons.person_outline),
                     ),
-                    validator: (valor) => (valor == null || valor.trim().isEmpty)
+                    validator: (valor) =>
+                        (valor == null || valor.trim().isEmpty)
                         ? 'Escribe tu nombre'
                         : null,
                   ),

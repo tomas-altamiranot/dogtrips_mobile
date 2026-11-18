@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 /// Alguien que ofrece paseos.
 ///
 /// A diferencia de [Mascota] y [Reserva], el usuario no crea paseadores: se
@@ -48,35 +50,33 @@ class Paseador {
   String get experienciaLegible {
     final anos = experienciaMeses ~/ 12;
     if (anos == 0) return '$experienciaMeses meses de experiencia';
-    return '$anos ${anos == 1 ? "ano" : "anos"} de experiencia';
+    return '$anos ${anos == 1 ? "año" : "años"} de experiencia';
   }
 
   // ───────────────────────────────────────────────────────────────────────
   // Serializacion
   // ───────────────────────────────────────────────────────────────────────
-  // SQLite no guarda listas. Las habilidades viajan como texto separado por
-  // "|" en vez de JSON: son valores cortos y sin comas, y asi la columna se
-  // puede leer de un vistazo al inspeccionar la base durante la demo.
-
-  static const _separador = '|';
+  // SQLite no guarda listas. Las habilidades viajan como texto JSON:
+  // ["Primeros auxilios","Maneja grupos"]. Se eligio JSON y no un separador
+  // como "|" porque JSON ya sabe escapar cualquier caracter: si manana una
+  // habilidad trajera ese simbolo, el separador la partiria en dos.
 
   Map<String, Object?> aMapa() => {
-        'id': id,
-        'nombre': nombre,
-        'zona': zona,
-        'latitud': latitud,
-        'longitud': longitud,
-        'calificacion': calificacion,
-        'paseos_hechos': paseosHechos,
-        'tarifa_hora': tarifaHora,
-        'experiencia_meses': experienciaMeses,
-        // SQLite tampoco tiene booleanos: se guardan como 1 y 0.
-        'verificado': verificado ? 1 : 0,
-        'habilidades': habilidades.join(_separador),
-      };
+    'id': id,
+    'nombre': nombre,
+    'zona': zona,
+    'latitud': latitud,
+    'longitud': longitud,
+    'calificacion': calificacion,
+    'paseos_hechos': paseosHechos,
+    'tarifa_hora': tarifaHora,
+    'experiencia_meses': experienciaMeses,
+    // SQLite tampoco tiene booleanos: se guardan como 1 y 0.
+    'verificado': verificado ? 1 : 0,
+    'habilidades': jsonEncode(habilidades),
+  };
 
   factory Paseador.desdeMapa(Map<String, Object?> m) {
-    final texto = (m['habilidades'] as String?) ?? '';
     return Paseador(
       id: m['id'] as int?,
       nombre: m['nombre'] as String,
@@ -90,7 +90,20 @@ class Paseador {
       tarifaHora: (m['tarifa_hora'] as num).toDouble(),
       experienciaMeses: m['experiencia_meses'] as int,
       verificado: (m['verificado'] as int) == 1,
-      habilidades: texto.isEmpty ? const [] : texto.split(_separador),
+      habilidades: _leerHabilidades(m['habilidades'] as String?),
     );
+  }
+
+  /// Convierte el texto JSON de vuelta en lista.
+  ///
+  /// Si el texto esta vacio o no es JSON valido, devuelve lista vacia en vez
+  /// de lanzar: un dato danado no deberia impedir ver al paseador.
+  static List<String> _leerHabilidades(String? texto) {
+    if (texto == null || texto.isEmpty) return const [];
+    try {
+      return List<String>.from(jsonDecode(texto) as List);
+    } on FormatException {
+      return const [];
+    }
   }
 }

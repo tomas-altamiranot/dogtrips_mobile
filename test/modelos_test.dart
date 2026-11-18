@@ -40,12 +40,8 @@ void main() {
     });
 
     test('la edad se muestra en lenguaje natural', () {
-      Mascota conEdad(int m) => Mascota(
-            nombre: 'x',
-            raza: 'y',
-            tamano: Tamano.mediano,
-            edadMeses: m,
-          );
+      Mascota conEdad(int m) =>
+          Mascota(nombre: 'x', raza: 'y', tamano: Tamano.mediano, edadMeses: m);
 
       expect(conEdad(8).edadLegible, '8 meses');
       expect(conEdad(12).edadLegible, '1 año');
@@ -79,86 +75,120 @@ void main() {
       expect(copia.latitud, closeTo(20.9674, 0.00001));
     });
 
-    test('sin habilidades devuelve lista vacia, no una lista con texto vacio', () {
-      const sinHabilidades = Paseador(
-        nombre: 'Javier Ancona',
-        zona: 'Temozon Norte',
-        latitud: 21.064,
-        longitud: -89.6,
-        calificacion: 4.2,
-        paseosHechos: 34,
-        tarifaHora: 85,
-        experienciaMeses: 8,
-        verificado: false,
+    test('las habilidades se guardan como JSON', () {
+      const p = Paseador(
+        nombre: 'Ana',
+        zona: 'Centro',
+        latitud: 0,
+        longitud: 0,
+        calificacion: 5,
+        paseosHechos: 1,
+        tarifaHora: 100,
+        experienciaMeses: 1,
+        verificado: true,
+        habilidades: ['Primeros auxilios', 'Maneja grupos'],
       );
-
-      final copia = Paseador.desdeMapa(sinHabilidades.aMapa());
-
-      expect(copia.habilidades, isEmpty);
-      expect(copia.verificado, isFalse);
+      expect(p.aMapa()['habilidades'], '["Primeros auxilios","Maneja grupos"]');
     });
+
+    test('un JSON danado no tumba la app: devuelve lista vacia', () {
+      final mapa = {
+        'id': 1,
+        'nombre': 'Ana',
+        'zona': 'Centro',
+        'latitud': 0.0,
+        'longitud': 0.0,
+        'calificacion': 5.0,
+        'paseos_hechos': 1,
+        'tarifa_hora': 100.0,
+        'experiencia_meses': 1,
+        'verificado': 1,
+        'habilidades': '["sin cerrar',
+      };
+      expect(Paseador.desdeMapa(mapa).habilidades, isEmpty);
+    });
+
+    test(
+      'sin habilidades devuelve lista vacia, no una lista con texto vacio',
+      () {
+        const sinHabilidades = Paseador(
+          nombre: 'Javier Ancona',
+          zona: 'Temozon Norte',
+          latitud: 21.064,
+          longitud: -89.6,
+          calificacion: 4.2,
+          paseosHechos: 34,
+          tarifaHora: 85,
+          experienciaMeses: 8,
+          verificado: false,
+        );
+
+        final copia = Paseador.desdeMapa(sinHabilidades.aMapa());
+
+        expect(copia.habilidades, isEmpty);
+        expect(copia.verificado, isFalse);
+      },
+    );
   });
 
   group('Tarifa', () {
     // La formula viene del documento de requerimientos de 5.o semestre:
-    // la tarifa depende de la duracion y de la complexion de la mascota.
+    // la tarifa depende de la duracion, la complexion y el numero de mascotas.
+
+    double costo(List<Tamano> tamanos, {double tarifa = 100, int min = 60}) =>
+        calcularCosto(tarifaHora: tarifa, tamanos: tamanos, duracionMin: min);
 
     test('una hora con un perro pequeno cuesta la tarifa base', () {
-      final costo = calcularCosto(
-        tarifaHora: 100,
-        tamano: Tamano.pequeno,
-        duracionMin: 60,
-      );
-      expect(costo, 100);
+      expect(costo([Tamano.pequeno]), 100);
     });
 
     test('media hora cuesta la mitad', () {
-      final costo = calcularCosto(
-        tarifaHora: 100,
-        tamano: Tamano.pequeno,
-        duracionMin: 30,
-      );
-      expect(costo, 50);
+      expect(costo([Tamano.pequeno], min: 30), 50);
     });
 
     test('un perro grande encarece el paseo un 30%', () {
-      final costo = calcularCosto(
-        tarifaHora: 100,
-        tamano: Tamano.grande,
-        duracionMin: 60,
-      );
-      expect(costo, 130);
+      expect(costo([Tamano.grande]), 130);
     });
 
     test('un perro mediano encarece un 15%', () {
-      final costo = calcularCosto(
-        tarifaHora: 120,
-        tamano: Tamano.mediano,
-        duracionMin: 60,
-      );
-      expect(costo, 138); // 120 * 1.15
+      expect(costo([Tamano.mediano], tarifa: 120), 138); // 120 * 1.15
     });
 
     test('el resultado no tiene centavos', () {
-      final costo = calcularCosto(
-        tarifaHora: 95,
-        tamano: Tamano.mediano,
-        duracionMin: 45,
-      );
       // 95 * 0.75 * 1.15 = 81.9375  ->  82
-      expect(costo, 82);
-      expect(costo, costo.roundToDouble());
+      final c = costo([Tamano.mediano], tarifa: 95, min: 45);
+      expect(c, 82);
+      expect(c, c.roundToDouble());
+    });
+
+    test('el descuento por perro adicional es compuesto', () {
+      // 100 + 90 + 81: cada perro paga el 90 % del anterior.
+      expect(costo([Tamano.pequeno, Tamano.pequeno]), 190);
+      expect(costo([Tamano.pequeno, Tamano.pequeno, Tamano.pequeno]), 271);
+    });
+
+    test('el mas grande paga completo, sin importar el orden', () {
+      // Grande completo (130) + pequeno con 10 % menos (90) = 220.
+      expect(costo([Tamano.grande, Tamano.pequeno]), 220);
+      expect(costo([Tamano.pequeno, Tamano.grande]), 220);
     });
   });
 
   group('Reserva', () {
-    test('Reserva.nueva calcula el costo a partir de mascota y paseador', () {
-      const mascota = Mascota(
+    test('Reserva.nueva calcula el costo con todos los perros', () {
+      const max = Mascota(
         id: 1,
         nombre: 'Max',
         raza: 'Labrador',
         tamano: Tamano.grande,
         edadMeses: 24,
+      );
+      const luna = Mascota(
+        id: 2,
+        nombre: 'Luna',
+        raza: 'Pug',
+        tamano: Tamano.pequeno,
+        edadMeses: 30,
       );
       const paseador = Paseador(
         id: 2,
@@ -174,22 +204,37 @@ void main() {
       );
 
       final reserva = Reserva.nueva(
-        mascota: mascota,
+        mascotas: [max, luna],
         paseador: paseador,
         fechaHora: DateTime(2026, 11, 20, 9),
         duracionMin: 60,
       );
 
-      expect(reserva.costoEstimado, 130); // 100 * 1h * 1.30
-      expect(reserva.mascotaId, 1);
+      expect(reserva.costoEstimado, 220); // 130 + 100 * 0.9
       expect(reserva.paseadorId, 2);
-      expect(reserva.estado, EstadoReserva.pendiente);
+      // Sin app del paseador, la reserva nace confirmada.
+      expect(reserva.estado, EstadoReserva.confirmada);
+    });
+
+    test('solo se cancela lo activo que aun no empieza', () {
+      Reserva con(EstadoReserva e, DateTime f) => Reserva(
+        paseadorId: 1,
+        fechaHora: f,
+        duracionMin: 60,
+        estado: e,
+        costoEstimado: 100,
+      );
+      final manana = DateTime.now().add(const Duration(days: 1));
+      final ayer = DateTime.now().subtract(const Duration(days: 1));
+
+      expect(con(EstadoReserva.confirmada, manana).sePuedeCancelar, isTrue);
+      expect(con(EstadoReserva.confirmada, ayer).sePuedeCancelar, isFalse);
+      expect(con(EstadoReserva.cancelada, manana).sePuedeCancelar, isFalse);
     });
 
     test('ida y vuelta a SQLite conserva la fecha y el estado', () {
       final original = Reserva(
         id: 9,
-        mascotaId: 1,
         paseadorId: 2,
         fechaHora: DateTime(2026, 11, 20, 9, 30),
         duracionMin: 45,

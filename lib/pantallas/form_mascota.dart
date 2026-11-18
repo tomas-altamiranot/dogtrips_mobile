@@ -213,7 +213,9 @@ class _PantallaFormMascotaState extends State<PantallaFormMascota> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(_editando ? 'Editar a ${widget.mascota!.nombre}' : 'Nuevo perro'),
+        title: Text(
+          _editando ? 'Editar a ${widget.mascota!.nombre}' : 'Nuevo perro',
+        ),
         actions: [
           if (_editando)
             IconButton(
@@ -350,7 +352,11 @@ class _PantallaFormMascotaState extends State<PantallaFormMascota> {
               backgroundImage: tieneFoto ? FileImage(File(ruta)) : null,
               child: tieneFoto
                   ? null
-                  : const Icon(Icons.pets, size: 48, color: ColoresDogTrips.navy),
+                  : const Icon(
+                      Icons.pets,
+                      size: 48,
+                      color: ColoresDogTrips.navy,
+                    ),
             ),
           ),
           const Positioned(

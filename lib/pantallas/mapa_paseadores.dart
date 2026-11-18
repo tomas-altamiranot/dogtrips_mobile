@@ -5,7 +5,9 @@ import 'package:material_ui/material_ui.dart';
 
 import '../datos/base_datos.dart';
 import '../main.dart';
+import '../modelos/mascota.dart';
 import '../modelos/paseador.dart';
+import 'perfil_paseador.dart';
 
 /// Centro de Merida. Se usa cuando no hay permiso de ubicacion o el GPS falla.
 ///
@@ -162,9 +164,17 @@ class _PantallaMapaPaseadoresState extends State<PantallaMapaPaseadores> {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),
-      builder: (hoja) => _ResumenPaseador(paseador: pas, distanciaKm: km),
+      builder: (hoja) =>
+          _ResumenPaseador(paseador: pas, distanciaKm: km, elegidas: _elegidas),
     );
   }
+
+  /// Los perros que el dueno eligio en el Inicio. Llegan como argumento de la
+  /// ruta; si se entro al mapa por otro lado, la lista viene vacia y se eligen
+  /// despues, en el formulario de reserva.
+  List<Mascota> get _elegidas =>
+      (ModalRoute.of(context)?.settings.arguments as List<Mascota>?) ??
+      const [];
 
   /// Se elige un paseador desde la lista: se cierra la hoja, el mapa vuela a
   /// su pin y se abre su tarjeta, igual que si se hubiera tocado el pin.
@@ -628,10 +638,15 @@ class _FilaPaseador extends StatelessWidget {
 
 /// Tarjeta que aparece al tocar un pin.
 class _ResumenPaseador extends StatelessWidget {
-  const _ResumenPaseador({required this.paseador, required this.distanciaKm});
+  const _ResumenPaseador({
+    required this.paseador,
+    required this.distanciaKm,
+    required this.elegidas,
+  });
 
   final Paseador paseador;
   final double distanciaKm;
+  final List<Mascota> elegidas;
 
   @override
   Widget build(BuildContext context) {
@@ -726,7 +741,7 @@ class _ResumenPaseador extends StatelessWidget {
                 _Dato(
                   icono: Icons.workspace_premium_outlined,
                   valor: '${paseador.experienciaMeses ~/ 12}',
-                  etiqueta: 'anos de exp.',
+                  etiqueta: 'años de exp.',
                 ),
               ],
             ),
@@ -734,14 +749,17 @@ class _ResumenPaseador extends StatelessWidget {
             SizedBox(
               width: double.infinity,
               child: FilledButton.icon(
-                onPressed: () {
-                  Navigator.pop(context); // cierra la hoja
-                  Navigator.pushNamed(
-                    context,
-                    Rutas.perfilPaseador,
-                    arguments: paseador,
-                  );
-                },
+                // El perfil se abre ENCIMA de esta tarjeta, sin cerrarla
+                // antes: asi el Hero tiene de donde despegar y el circulo
+                // "vuela" hasta el perfil. Al regresar, vuelve la tarjeta.
+                onPressed: () => Navigator.pushNamed(
+                  context,
+                  Rutas.perfilPaseador,
+                  arguments: ArgsPaseador(
+                    paseador: paseador,
+                    elegidas: elegidas,
+                  ),
+                ),
                 icon: const Icon(Icons.person_outline),
                 label: const Text('Ver perfil completo'),
               ),

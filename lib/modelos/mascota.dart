@@ -65,34 +65,34 @@ class Mascota {
   }
 
   Mascota copiarCon({int? id, String? fotoPath}) => Mascota(
-        id: id ?? this.id,
-        nombre: nombre,
-        raza: raza,
-        tamano: tamano,
-        edadMeses: edadMeses,
-        fotoPath: fotoPath ?? this.fotoPath,
-        notas: notas,
-      );
+    id: id ?? this.id,
+    nombre: nombre,
+    raza: raza,
+    tamano: tamano,
+    edadMeses: edadMeses,
+    fotoPath: fotoPath ?? this.fotoPath,
+    notas: notas,
+  );
 
   // SQLite solo guarda enteros, reales, texto y blobs: el enum viaja como su
   // nombre en texto y se reconstruye al leer.
   Map<String, Object?> aMapa() => {
-        'id': id,
-        'nombre': nombre,
-        'raza': raza,
-        'tamano': tamano.name,
-        'edad_meses': edadMeses,
-        'foto_path': fotoPath,
-        'notas': notas,
-      };
+    'id': id,
+    'nombre': nombre,
+    'raza': raza,
+    'tamano': tamano.name,
+    'edad_meses': edadMeses,
+    'foto_path': fotoPath,
+    'notas': notas,
+  };
 
   factory Mascota.desdeMapa(Map<String, Object?> m) => Mascota(
-        id: m['id'] as int?,
-        nombre: m['nombre'] as String,
-        raza: m['raza'] as String,
-        tamano: Tamano.desdeTexto(m['tamano'] as String?),
-        edadMeses: m['edad_meses'] as int,
-        fotoPath: m['foto_path'] as String?,
-        notas: (m['notas'] as String?) ?? '',
-      );
+    id: m['id'] as int?,
+    nombre: m['nombre'] as String,
+    raza: m['raza'] as String,
+    tamano: Tamano.desdeTexto(m['tamano'] as String?),
+    edadMeses: m['edad_meses'] as int,
+    fotoPath: m['foto_path'] as String?,
+    notas: (m['notas'] as String?) ?? '',
+  );
 }

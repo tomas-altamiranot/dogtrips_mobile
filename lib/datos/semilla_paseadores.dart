@@ -44,7 +44,11 @@ const paseadoresSembrados = <Paseador>[
     tarifaHora: 150,
     experienciaMeses: 54,
     verificado: true,
-    habilidades: ['Maneja reactivos', 'Primeros auxilios', 'Adiestramiento basico'],
+    habilidades: [
+      'Maneja reactivos',
+      'Primeros auxilios',
+      'Adiestramiento basico',
+    ],
   ),
   Paseador(
     nombre: 'David Loria',
@@ -140,7 +144,11 @@ const paseadoresSembrados = <Paseador>[
     tarifaHora: 140,
     experienciaMeses: 48,
     verificado: true,
-    habilidades: ['Primeros auxilios', 'Adiestramiento basico', 'Maneja grupos'],
+    habilidades: [
+      'Primeros auxilios',
+      'Adiestramiento basico',
+      'Maneja grupos',
+    ],
   ),
   Paseador(
     nombre: 'Leonardo Vega',
